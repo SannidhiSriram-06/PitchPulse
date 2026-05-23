@@ -68,23 +68,23 @@ export default function HistoryPage() {
 
     return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
                 <button onClick={() => navigate('/dashboard')}
                     style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
                     <ArrowLeft size={16} /> Dashboard
                 </button>
                 <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                     {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                 </button>
                 <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    PitchPulse
                 </span>
             </nav>
 
             <div style={{ maxWidth: '800px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '1.5rem' }}>Brief History</h1>
+                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '1.5rem' }}>Brief History</h1>
 
                 {/* Filters */}
                 <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -92,21 +92,21 @@ export default function HistoryPage() {
                         <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-sec)' }} />
                         <input value={search} onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search by company..."
-                            style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.5rem 0.75rem 0.5rem 2rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                            style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem 0.5rem 2rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }}
                         />
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: isMobile ? 'wrap' : 'nowrap', overflowX: 'auto' }}>
                         {DATE_FILTERS.map(f => (
                             <button key={f} onClick={() => setDateFilter(f)}
-                                style={{ padding: '0.4rem 0.75rem', borderRadius: '4px', border: `1px solid ${dateFilter === f ? 'var(--accent)' : 'var(--border)'}`, background: dateFilter === f ? 'var(--accent-15)' : 'transparent', color: dateFilter === f ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+                                style={{ padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${dateFilter === f ? 'var(--accent-border)' : 'var(--border)'}`, background: dateFilter === f ? 'var(--accent-soft)' : 'transparent', color: dateFilter === f ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
                                 {f}
                             </button>
                         ))}
                     </div>
 
                     <button onClick={() => setSavedOnly(!savedOnly)}
-                        style={{ padding: '0.4rem 0.75rem', borderRadius: '4px', border: `1px solid ${savedOnly ? 'var(--accent)' : 'var(--border)'}`, background: savedOnly ? 'var(--accent-15)' : 'transparent', color: savedOnly ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                        style={{ padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${savedOnly ? 'var(--accent-border)' : 'var(--border)'}`, background: savedOnly ? 'var(--accent-soft)' : 'transparent', color: savedOnly ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
                         <Bookmark size={12} /> Saved only
                     </button>
                 </div>
@@ -115,27 +115,27 @@ export default function HistoryPage() {
                     {loading ? (
                         Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
                     ) : filtered.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                        <div style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
                             <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>No briefs match your search.</p>
                         </div>
                     ) : (
                         filtered.map(brief => (
                             <div key={brief.id}
-                            style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                            style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
 
                             <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/brief/${brief.id}`)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                                    <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{brief.company_name}</span>
+                                    <span style={{ fontWeight: '800', fontSize: '0.95rem', letterSpacing: '-0.5px' }}>{brief.company_name}</span>
                                     {brief.saved && <Bookmark size={13} style={{ color: 'var(--accent)' }} fill="var(--accent)" />}
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-sec)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '3px', padding: '0.1rem 0.4rem', textTransform: 'capitalize' }}>{brief.length}</span>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-sec)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.4rem', textTransform: 'capitalize' }}>{brief.length}</span>
                                 </div>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: 0 }}>{formatDate(brief.created_at)}</p>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>{formatDate(brief.created_at)}</p>
                             </div>
 
                             <button onClick={() => setDeleteConfirm(brief.id)}
-                                style={{ background: 'none', border: 'none', color: '#444444', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
-                                onMouseEnter={(e) => e.currentTarget.style.color = '#EF4444'}
-                                onMouseLeave={(e) => e.currentTarget.style.color = '#444444'}>
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
                                 <Trash2 size={15} />
                             </button>
                         </div>
@@ -145,17 +145,17 @@ export default function HistoryPage() {
 
             {/* Delete confirmation modal */}
             {deleteConfirm && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '2rem', maxWidth: '380px', width: '90%' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '380px', width: '90%' }}>
                         <h3 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>Delete this brief?</h3>
                         <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>This can't be undone.</p>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                             <button onClick={() => setDeleteConfirm(null)}
-                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem' }}>
+                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem' }}>
                                 Cancel
                             </button>
                             <button onClick={() => handleDelete(deleteConfirm)}
-                                style={{ flex: 1, background: '#EF4444', border: 'none', borderRadius: '4px', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem', fontWeight: '700' }}>
+                                style={{ flex: 1, background: 'var(--danger)', border: 'none', borderRadius: 'var(--radius)', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem', fontWeight: '700' }}>
                                 Delete
                             </button>
                         </div>

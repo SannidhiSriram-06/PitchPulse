@@ -44,8 +44,8 @@ export default function OnboardingPage() {
         <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
 
             {/* Logo */}
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '3rem', letterSpacing: '-0.5px' }}>
-                Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+            <div style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '3rem', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                PitchPulse
             </div>
 
             {/* Step indicators */}
@@ -56,19 +56,19 @@ export default function OnboardingPage() {
                             width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '0.75rem', fontWeight: '700',
                             background: step === s ? 'var(--accent)' : step > s ? 'var(--border)' : 'var(--surface)',
-                            color: step === s ? 'var(--bg)' : step > s ? 'var(--text-sec)' : '#444444',
-                            border: step > s ? '1px solid #333' : 'none'
+                            color: step === s ? 'var(--bg)' : step > s ? 'var(--text-sec)' : 'var(--text-muted)',
+                            border: step > s ? '1px solid var(--border)' : 'none'
                         }}>
                             {step > s ? '✓' : s}
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: step === s ? 'var(--text)' : '#444444' }}>{stepLabel[s - 1]}</span>
+                        <span style={{ fontSize: '0.75rem', color: step === s ? 'var(--text)' : 'var(--text-muted)' }}>{stepLabel[s - 1]}</span>
                         {s < 3 && <div style={{ width: '2rem', height: '1px', background: 'var(--border)', marginLeft: '0.25rem' }} />}
                     </div>
                 ))}
             </div>
 
             {/* Card */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '2.5rem', width: '100%', maxWidth: '480px' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2.5rem', width: '100%', maxWidth: '480px' }}>
 
                 {/* Step 1 */}
                 {step === 1 && (
@@ -81,22 +81,22 @@ export default function OnboardingPage() {
                                 value={company} onChange={(e) => setCompany(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addCompany()}
                                 placeholder="e.g. Infosys, Razorpay..."
-                                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
+                                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
                             />
                             <button onClick={addCompany} disabled={companies.length >= 5}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius)', padding: '0.75rem 1rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                 Add
                             </button>
                         </div>
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem', marginBottom: '1.5rem' }}>
                             {companies.map((c) => (
-                                <div key={c} style={{ background: 'var(--bg)', border: '1px solid #333', borderRadius: '4px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div key={c} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     {c}
                                     <span onClick={() => removeCompany(c)} style={{ color: 'var(--text-sec)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>×</span>
                                 </div>
                             ))}
-                            {companies.length === 0 && <span style={{ color: '#444', fontSize: '0.8rem' }}>No companies added yet</span>}
+                            {companies.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No companies added yet</span>}
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -116,11 +116,11 @@ export default function OnboardingPage() {
                         <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>You can change these any time in settings.</p>
 
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default brief length</label>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default brief length</label>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 {['short', 'medium', 'long'].map((l) => (
                                     <button key={l} onClick={() => setLength(l)}
-                                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--bg)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
+                                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${length === l ? 'var(--accent-border)' : 'var(--border)'}`, background: length === l ? 'var(--accent-soft)' : 'var(--surface)', color: length === l ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
                                         {l}
                                     </button>
                                 ))}
@@ -128,11 +128,11 @@ export default function OnboardingPage() {
                         </div>
 
                         <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default view style</label>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default view style</label>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 {['tabs', 'cards'].map((v) => (
                                     <button key={v} onClick={() => setView(v)}
-                                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${view === v ? 'var(--accent)' : 'var(--border)'}`, background: view === v ? 'var(--accent-15)' : 'var(--bg)', color: view === v ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
+                                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${view === v ? 'var(--accent-border)' : 'var(--border)'}`, background: view === v ? 'var(--accent-soft)' : 'var(--surface)', color: view === v ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
                                         {v === 'tabs' ? 'Tabs' : 'Cards'}
                                     </button>
                                 ))}
@@ -141,11 +141,11 @@ export default function OnboardingPage() {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <button onClick={() => setStep(1)}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem 1.25rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem 1.25rem', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                 ← Back
                             </button>
                             <button onClick={() => setStep(3)}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1.5rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.75rem 1.5rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', boxShadow: 'var(--glow)' }}>
                                 Continue →
                             </button>
                         </div>
@@ -161,13 +161,13 @@ export default function OnboardingPage() {
                             <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>Here's what we saved for you.</p>
                         </div>
 
-                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem', marginBottom: '2rem' }}>
+                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '2rem' }}>
                             {[
                                 { label: 'Watchlist', value: companies.length > 0 ? companies.join(', ') : 'None added' },
                                 { label: 'Default length', value: length },
                                 { label: 'Default view', value: view },
                             ].map((item) => (
-                                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #1a1a1a' }}>
+                                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid var(--border)' }}>
                                     <span style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>{item.label}</span>
                                     <span style={{ fontSize: '0.875rem', textTransform: 'capitalize', color: 'var(--text)' }}>{item.value}</span>
                                 </div>
@@ -176,11 +176,11 @@ export default function OnboardingPage() {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <button onClick={() => setStep(2)}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem 1.25rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem 1.25rem', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                 ← Back
                             </button>
                             <button onClick={finish} disabled={loading}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1.5rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.75rem 1.5rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', boxShadow: 'var(--glow)' }}>
                                 {loading ? 'Saving...' : 'Go to Dashboard →'}
                             </button>
                         </div>

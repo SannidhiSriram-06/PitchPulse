@@ -50,10 +50,7 @@ def require_clerk_auth(f):
         user = User.query.filter_by(clerk_user_id=clerk_user_id).first()
         if not user:
             # Auto-create user on first API call if webhook missed it
-            email = ""
-            email_data = payload.get("email", "")
-            if email_data:
-                email = email_data
+            email = payload.get("email", "") or f"{clerk_user_id}@clerk.local"
             user = User(
                 clerk_user_id=clerk_user_id,
                 email=email,

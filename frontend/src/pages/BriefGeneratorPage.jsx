@@ -122,24 +122,24 @@ export default function BriefGeneratorPage() {
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
                 <button onClick={() => navigate('/dashboard')}
                     style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
                     <ArrowLeft size={16} /> Dashboard
                 </button>
                 <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                     {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                 </button>
                 <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    PitchPulse
                 </span>
             </nav>
 
             {/* Loading overlay */}
             {(generating || isGenerating) && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)ee', zIndex: 999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
                     <div style={{ width: '48px', height: '48px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                     <p style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: '600' }}>{statusMessage}</p>
                     <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem' }}>This takes 20–60 seconds. Don't close the tab.</p>
@@ -150,24 +150,24 @@ export default function BriefGeneratorPage() {
             {/* Content */}
             <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2rem 1rem' : '3rem 1.5rem' }}>
 
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '0.5rem' }}>Generate a Brief</h1>
+                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>Generate a Brief</h1>
                 <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Enter a company name and we'll do the rest.</p>
 
                 {/* Mode Toggle */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2.5rem' }}>
                     <button onClick={() => setComparisonMode(false)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${!comparisonMode ? 'var(--accent)' : 'var(--border)'}`, background: !comparisonMode ? 'var(--accent-15)' : 'var(--surface)', color: !comparisonMode ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: !comparisonMode ? '700' : '400' }}>
+                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${!comparisonMode ? 'var(--accent-border)' : 'var(--border)'}`, background: !comparisonMode ? 'var(--accent-soft)' : 'var(--surface)', color: !comparisonMode ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: !comparisonMode ? '700' : '400' }}>
                         Single Company
                     </button>
                     <button onClick={() => setComparisonMode(true)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${comparisonMode ? 'var(--accent)' : 'var(--border)'}`, background: comparisonMode ? 'var(--accent-15)' : 'var(--surface)', color: comparisonMode ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: comparisonMode ? '700' : '400' }}>
+                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${comparisonMode ? 'var(--accent-border)' : 'var(--border)'}`, background: comparisonMode ? 'var(--accent-soft)' : 'var(--surface)', color: comparisonMode ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: comparisonMode ? '700' : '400' }}>
                         Compare Two
                     </button>
                 </div>
 
                 {/* Meeting Type */}
                         <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>MEETING TYPE (OPTIONAL)</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>MEETING TYPE (OPTIONAL)</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 {Object.entries(TEMPLATES).map(([key, value]) => {
                                     const active = selectedTemplate === key
@@ -181,7 +181,7 @@ export default function BriefGeneratorPage() {
                                                 setCustomPrompt(value)
                                             }
                                         }}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-15)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
+                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '99px', border: `1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`, background: active ? 'var(--accent-soft)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
                                             {key}
                                         </button>
                                     )
@@ -193,13 +193,13 @@ export default function BriefGeneratorPage() {
                     <>
                         {/* Company input */}
                         <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company Name</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company Name</label>
                             <input
                                 value={company} onChange={(e) => setCompany(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                                 placeholder="e.g. Razorpay, Infosys, Zomato..."
                                 autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
+                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
                             />
                         </div>
                     </>
@@ -208,22 +208,22 @@ export default function BriefGeneratorPage() {
                 {comparisonMode && (
                     <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexDirection: isMobile ? 'column' : 'row' }}>
                         <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 1</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 1</label>
                             <input
                                 value={company} onChange={(e) => setCompany(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                                 placeholder="e.g. Infosys"
                                 autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
+                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
                             />
                         </div>
                         <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 2</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 2</label>
                             <input
                                 value={company2} onChange={(e) => setCompany2(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                                 placeholder="e.g. TCS"
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
+                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
                             />
                         </div>
                     </div>
@@ -231,16 +231,16 @@ export default function BriefGeneratorPage() {
 
                 {/* Length */}
                 <div style={{ marginBottom: '2rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Brief Length</label>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Brief Length</label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                         {['short', 'medium', 'long'].map((l) => (
                             <button key={l} onClick={() => setLength(l)}
-                                style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--surface)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
+                                style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${length === l ? 'var(--accent-border)' : 'var(--border)'}`, background: length === l ? 'var(--accent-soft)' : 'var(--surface)', color: length === l ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
                                 {l}
                             </button>
                         ))}
                     </div>
-                    <p style={{ color: '#444444', fontSize: '0.75rem', marginTop: '0.4rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.4rem' }}>
                         {length === 'short' ? '~15–20 seconds' : length === 'medium' ? '~30–45 seconds' : '~60–90 seconds'}
                     </p>
                 </div>
@@ -249,13 +249,13 @@ export default function BriefGeneratorPage() {
                     <>
                         {/* Sections */}
                         <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Sections to include</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Sections to include</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 {ALL_SECTIONS.map((s) => {
                                     const active = sections.includes(s.key)
                                     return (
                                         <button key={s.key} onClick={() => toggleSection(s.key)}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-15)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
+                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '99px', border: `1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`, background: active ? 'var(--accent-soft)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
                                             {s.label}
                                         </button>
                                     )
@@ -267,12 +267,12 @@ export default function BriefGeneratorPage() {
 
                 {/* Custom Prompt */}
                         <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Custom Focus (optional)</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Custom Focus (optional)</label>
                             <textarea
                                 value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
                                 placeholder="e.g. Focus on their AI strategy and recent layoffs, or Ask about their cloud migration plans"
                                 maxLength={500}
-                                style={{ width: '100%', minHeight: '80px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px', resize: 'vertical' }}
+                                style={{ width: '100%', minHeight: '80px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px', resize: 'vertical' }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem' }}>
                                 <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', margin: 0 }}>
@@ -285,13 +285,13 @@ export default function BriefGeneratorPage() {
                         </div>
 
                 {error && (
-                    <div style={{ background: '#1a0a0a', border: '1px solid #EF4444', borderRadius: '4px', padding: '0.75rem', marginBottom: '1.5rem', color: '#EF4444', fontSize: '0.875rem' }}>
+                    <div style={{ background: 'var(--danger)15', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', padding: '0.75rem', marginBottom: '1.5rem', color: 'var(--danger)', fontSize: '0.875rem' }}>
                         {error}
                     </div>
                 )}
 
                 <button onClick={handleGenerate} disabled={generating || isGenerating}
-                    style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '6px', padding: '1rem', color: 'var(--accent-text)', fontSize: '1rem', fontWeight: '800', fontFamily: 'Space Grotesk, sans-serif', cursor: (generating || isGenerating) ? 'not-allowed' : 'pointer', letterSpacing: '-0.3px' }}>
+                    style={{ width: '100%', background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '1rem', color: '#fff', fontSize: '1rem', fontWeight: '800', fontFamily: 'Space Grotesk, sans-serif', cursor: (generating || isGenerating) ? 'not-allowed' : 'pointer', letterSpacing: '-0.3px', boxShadow: 'var(--glow)' }}>
                     ⚡ {comparisonMode ? 'Compare Companies' : 'Generate Brief'}
                 </button>
 

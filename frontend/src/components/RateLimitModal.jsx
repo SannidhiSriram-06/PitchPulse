@@ -10,11 +10,12 @@ export default function RateLimitModal({ resetInMinutes, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
       onClick={onClose}
     >
       <div
         className="border rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4 relative"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', borderRadius: 'var(--radius-lg)' }}
         onClick={e => e.stopPropagation()}
       >
         <button
@@ -24,7 +25,7 @@ export default function RateLimitModal({ resetInMinutes, onClose }) {
         >
           &times;
         </button>
-        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Hourly limit reached</h2>
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Hourly limit reached</h2>
         <p className="text-sm" style={{ color: 'var(--text-sec)' }}>
           You've used your 3 free briefs this hour.
         </p>
@@ -39,7 +40,7 @@ export default function RateLimitModal({ resetInMinutes, onClose }) {
         <button
           onClick={onClose}
           className="w-full py-2 rounded-lg font-semibold text-sm"
-          style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+          style={{ background: 'var(--gradient)', color: '#fff', border: 'none', boxShadow: 'var(--glow)' }}
         >
           Got it
         </button>

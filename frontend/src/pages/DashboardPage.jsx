@@ -155,7 +155,7 @@ export default function DashboardPage() {
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Top bar */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 100 }}>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', position: 'sticky', top: 0, background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', gap: '0.5rem' }}>
 
                     {isMobile ? (
@@ -163,15 +163,15 @@ export default function DashboardPage() {
                             <Menu size={20} />
                         </button>
                     ) : (
-                        <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', flexShrink: 0 }}>
-                            Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+                        <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', flexShrink: 0, background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            PitchPulse
                         </span>
                     )}
 
                     <input id="search-bar"
                         value={search} onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search briefs..."
-                        style={{ flex: 1, maxWidth: '400px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.5rem 0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
+                        style={{ flex: 1, maxWidth: '400px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
                     />
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
@@ -187,7 +187,7 @@ export default function DashboardPage() {
                             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                         </button>
                         <button onClick={() => navigate('/brief/new')}
-                            style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: isMobile ? '0.5rem' : '0.5rem 1rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: isMobile ? '0.5rem' : '0.5rem 1rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: 'var(--glow)' }}>
                             <Plus size={14} /> {!isMobile && 'New Brief'}
                         </button>
 
@@ -230,12 +230,12 @@ export default function DashboardPage() {
 
                 {/* Sidebar */}
                 {!isMobile && (
-                    <aside id="watchlist-sidebar" style={{ width: sidebarOpen ? '240px' : '48px', borderRight: '1px solid var(--border)', padding: sidebarOpen ? '1.25rem' : '1.25rem 0.25rem', overflowY: 'auto', flexShrink: 0, transition: 'width 0.2s ease', position: 'relative' }}>
+                    <aside id="watchlist-sidebar" style={{ width: sidebarOpen ? '240px' : '48px', borderRight: '1px solid var(--border)', padding: sidebarOpen ? '1.25rem' : '1.25rem 0.25rem', overflowY: 'auto', flexShrink: 0, transition: 'width 0.2s ease', position: 'relative', background: 'var(--bg-2)' }}>
                         <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ position: 'absolute', top: '0.75rem', right: '0.25rem', background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: '0.2rem', zIndex: 10 }}>
                             {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                         </button>
 
-                        {sidebarOpen && <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', marginTop: '1.5rem' }}>Watchlist</p>}
+                        {sidebarOpen && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', marginTop: '1.5rem' }}>Watchlist</p>}
                         {!sidebarOpen && <div style={{ height: '2.5rem' }} />}
 
                         {loading ? (
@@ -245,8 +245,8 @@ export default function DashboardPage() {
                         ) : (
                             watchlist.map((item) => (
                                 <div key={item.id}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', padding: '0.75rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: '6px', transition: 'background 0.2s', margin: '0 -0.5rem' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', padding: '0.5rem 0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: 'var(--radius-sm)', transition: 'background 0.2s', margin: '0 -0.5rem' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                         {sidebarOpen && (
                                             <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -266,9 +266,9 @@ export default function DashboardPage() {
                                         )}
                                         <div style={{ display: 'flex', flexDirection: sidebarOpen ? 'row' : 'column', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
                                             <button onClick={() => navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`)}
-                                                style={{ background: 'var(--accent-15)', border: '1px solid var(--accent-20)', borderRadius: '4px', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-20)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-15)'}
+                                                style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
                                                 title="Brief Me">
                                                 <Zap size={12} />
                                             </button>
@@ -326,16 +326,16 @@ export default function DashboardPage() {
                                     <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
                                         placeholder="Add company..."
-                                        style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
+                                        style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
                                     />
                                     <button onClick={addToWatchlist}
-                                        style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.4rem 0.6rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                        style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                         +
                                     </button>
                                 </>
                             ) : (
                                 <button onClick={() => setSidebarOpen(true)}
-                                    style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.4rem 0.6rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                    style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                     +
                                 </button>
                             )}
@@ -347,7 +347,7 @@ export default function DashboardPage() {
                 {isMobile && (
                     <>
                         {mobileDrawerOpen && <div onClick={() => setMobileDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: '#0A0A0A99', zIndex: 499 }} />}
-                        <div style={{ position: 'fixed', left: 0, top: 0, height: '100vh', width: '280px', background: 'var(--surface)', borderRight: '1px solid var(--border)', zIndex: 500, transition: 'transform 0.25s ease', transform: mobileDrawerOpen ? 'translateX(0)' : 'translateX(-100%)', padding: '1.25rem', overflowY: 'auto', pointerEvents: mobileDrawerOpen ? 'auto' : 'none' }}>
+                        <div style={{ position: 'fixed', left: 0, top: 0, height: '100vh', width: '280px', background: 'var(--bg-2)', borderRight: '1px solid var(--border)', zIndex: 500, transition: 'transform 0.25s ease', transform: mobileDrawerOpen ? 'translateX(0)' : 'translateX(-100%)', padding: '1.25rem', overflowY: 'auto', pointerEvents: mobileDrawerOpen ? 'auto' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                 <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
                                     Watchlist
@@ -364,8 +364,8 @@ export default function DashboardPage() {
                             ) : (
                                 watchlist.map((item) => (
                                     <div key={item.id}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: '6px', transition: 'background 0.2s', margin: '0 -0.5rem' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: 'var(--radius-sm)', transition: 'background 0.2s', margin: '0 -0.5rem' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface)'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                             <div style={{ flex: 1, overflow: 'hidden' }}>
                                                 <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.2rem', display: 'flex', alignItems: 'center' }}>
@@ -383,9 +383,9 @@ export default function DashboardPage() {
                                             </div>
                                             <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                                                 <button onClick={() => { setMobileDrawerOpen(false); navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`) }}
-                                                    style={{ background: 'var(--accent-15)', border: '1px solid var(--accent-20)', borderRadius: '4px', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-20)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-15)'}
+                                                    style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
                                                     title="Brief Me">
                                                     <Zap size={12} />
                                                 </button>
@@ -436,10 +436,10 @@ export default function DashboardPage() {
                                 <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
                                     placeholder="Add company..."
-                                    style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
+                                    style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
                                 />
                                 <button onClick={addToWatchlist}
-                                    style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.4rem 0.6rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                    style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                                     +
                                 </button>
                             </div>
@@ -487,16 +487,16 @@ export default function DashboardPage() {
                         {loading ? (
                             Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
                         ) : filteredBriefs.length === 0 ? (
-                            <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 1rem', textAlign: 'center', gap: '1.5rem', background: 'var(--surface)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
-                                <div style={{ background: 'var(--accent-15)', padding: '1.25rem', borderRadius: '50%' }}>
-                                    <Zap size={40} color="var(--accent)" />
+                            <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 1rem', textAlign: 'center', gap: '1.5rem', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                                <div style={{ background: 'var(--gradient)', padding: '1.25rem', borderRadius: '50%' }}>
+                                    <Zap size={40} color="#fff" />
                                 </div>
                                 <div>
-                                    <h3 style={{ color: 'var(--text)', fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>No briefs yet</h3>
+                                    <h3 style={{ color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>No briefs yet</h3>
                                     <p style={{ color: 'var(--text-sec)' }}>Generate your first brief to see it here. Takes under 60 seconds.</p>
                                 </div>
                                 <button onClick={() => navigate('/brief/new')}
-                                    style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', background: 'var(--accent)', color: '#000', fontWeight: '700', fontSize: '0.875rem', border: 'none', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                    style={{ padding: '0.75rem 1.5rem', borderRadius: 'var(--radius)', background: 'var(--gradient)', color: '#fff', fontWeight: '700', fontSize: '0.875rem', border: 'none', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', boxShadow: 'var(--glow)' }}>
                                     + Generate Brief
                                 </button>
                             </div>
@@ -509,12 +509,12 @@ export default function DashboardPage() {
                             
                             return (
                                 <div key={brief.id} onClick={() => navigate(`/brief/${brief.id}`)}
-                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.boxShadow = '0 4px 20px var(--accent-glow)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}>
                                     
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                                        <h3 style={{ fontWeight: '700', fontSize: '1.25rem', letterSpacing: '-0.3px', color: 'var(--text)', flex: 1, paddingRight: '1rem' }}>{brief.company_name}</h3>
+                                        <h3 style={{ fontWeight: '800', fontSize: '1.25rem', letterSpacing: '-0.5px', color: 'var(--text)', flex: 1, paddingRight: '1rem' }}>{brief.company_name}</h3>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                                             {brief.saved && (
                                                 <Bookmark size={16} style={{ color: 'var(--accent)' }} fill="var(--accent)" />
@@ -536,7 +536,7 @@ export default function DashboardPage() {
                                     {sections.length > 0 && (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
                                             {sections.map(sec => (
-                                                <span key={sec} style={{ fontSize: '0.7rem', color: '#888', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', padding: '0.2rem 0.6rem', textTransform: 'capitalize' }}>
+                                                <span key={sec} style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '99px', padding: '0.2rem 0.6rem', textTransform: 'capitalize' }}>
                                                     {sec}
                                                 </span>
                                             ))}
@@ -544,11 +544,11 @@ export default function DashboardPage() {
                                     )}
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: 'auto' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#666' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
                                             <Clock size={12} />
                                             <span style={{ fontSize: '0.75rem' }}>{formatDate(brief.created_at)}</span>
                                         </div>
-                                        <span style={{ fontSize: '0.75rem', color: '#000', fontWeight: '600', textTransform: 'capitalize', background: 'var(--accent)', borderRadius: '4px', padding: '0.2rem 0.5rem' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)', fontWeight: '600', textTransform: 'capitalize', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.5rem' }}>
                                             {brief.length}
                                         </span>
                                     </div>
@@ -560,17 +560,18 @@ export default function DashboardPage() {
             </div>
             {showCustomize && <CustomizePanel onClose={() => setShowCustomize(false)} />}
             {isMobile && (
-              <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-around', padding: '0.5rem 0', zIndex: 100 }}>
-                <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--accent)', fontSize: '0.6rem' }}>
+              <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-2)cc', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-around', padding: '0.5rem 0', zIndex: 100 }}>
+                <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--accent)', fontSize: '0.6rem', position: 'relative' }}>
                   <span style={{ fontSize: '1.2rem' }}>🏠</span>Home
+                  <span style={{ position: 'absolute', top: '-4px', width: '4px', height: '4px', background: 'var(--gradient)', borderRadius: '50%' }} />
                 </button>
-                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-sec)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <span style={{ fontSize: '1.2rem' }}>⚡</span>New Brief
                 </button>
-                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-sec)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <span style={{ fontSize: '1.2rem' }}>🕐</span>History
                 </button>
-                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-sec)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <span style={{ fontSize: '1.2rem' }}>⚙</span>Settings
                 </button>
               </nav>

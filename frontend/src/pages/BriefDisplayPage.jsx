@@ -238,15 +238,15 @@ export default function BriefDisplayPage() {
             )}
 
             {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <button onClick={() => navigate('/dashboard')}
                         style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
                         <ArrowLeft size={16} /> {!isMobile && 'Dashboard'}
                     </button>
                     {!isMobile && <span style={{ color: 'var(--border)', marginLeft: '0.5rem', marginRight: '0.5rem' }}>|</span>}
-                    <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                        Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+                    <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        PitchPulse
                     </span>
                 </div>
 
@@ -256,38 +256,38 @@ export default function BriefDisplayPage() {
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sec)', padding: '0.25rem' }}>
                         ⚙
                     </button>
-                    <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                     </button>
                 {!isShareView && (
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <button onClick={handleSave} disabled={saving}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: saved ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: saved ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                             {!isMobile && (saved ? 'Saved' : 'Save')}
                         </button>
                         <button onClick={exportToPDF} disabled={exportingPDF}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: exportingPDF ? 'var(--accent)' : 'var(--text-sec)', cursor: exportingPDF ? 'wait' : 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: exportingPDF ? 'var(--accent)' : 'var(--text-sec)', cursor: exportingPDF ? 'wait' : 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <Download size={14} />
                             {!isMobile && (exportingPDF ? 'Exporting...' : 'Export PDF')}
                         </button>
                         <button onClick={() => setShowSchedule(!showSchedule)}
-                            style={{ background: showSchedule ? 'var(--accent-15)' : 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showSchedule ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: showSchedule ? 'var(--accent-soft)' : 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showSchedule ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             📅 {!isMobile && 'Schedule'}
                         </button>
                         {diffData?.has_diff && (
                             <button onClick={() => setShowDiff(!showDiff)}
-                                style={{ background: showDiff ? 'var(--accent-15)' : 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showDiff ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                style={{ background: showDiff ? 'var(--accent-soft)' : 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showDiff ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                 🔄 {!isMobile && "What's New"}
                             </button>
                         )}
                         <button onClick={handleShare}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: copied ? '#22C55E' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: copied ? 'var(--success)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <Share2 size={14} />
                             {!isMobile && (copied ? 'Copied!' : 'Share')}
                         </button>
                         <button onClick={() => navigate(`/brief/new?company=${encodeURIComponent(briefMeta?.company_name || '')}`)}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <RefreshCw size={14} /> {!isMobile && 'Regenerate'}
                         </button>
                     </div>
@@ -297,22 +297,22 @@ export default function BriefDisplayPage() {
 
             {/* Schedule Panel */}
             {showSchedule && (
-                <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', marginBottom: '0.25rem' }}>Meeting time</label>
-                            <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} min={new Date().toISOString().slice(0, 16)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: '4px', fontSize: '0.875rem' }} />
+                            <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} min={new Date().toISOString().slice(0, 16)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
                         </div>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', marginBottom: '0.25rem' }}>Send to</label>
-                            <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: '4px', fontSize: '0.875rem', minWidth: '200px' }} />
+                            <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minWidth: '200px' }} />
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button onClick={handleSchedule} style={{ background: 'var(--accent)', color: 'black', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Send Brief to My Email</button>
+                        <button onClick={handleSchedule} style={{ background: 'var(--gradient)', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--glow)' }}>Send Brief to My Email</button>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)' }}>We'll send this brief to your email right away</span>
                     </div>
-                    {scheduleStatus && <div style={{ fontSize: '0.875rem', color: scheduleStatus.includes('✓') ? '#22C55E' : '#EF4444' }}>{scheduleStatus}</div>}
+                    {scheduleStatus && <div style={{ fontSize: '0.875rem', color: scheduleStatus.includes('✓') ? 'var(--success)' : 'var(--danger)' }}>{scheduleStatus}</div>}
                 </div>
             )}
 
@@ -321,19 +321,19 @@ export default function BriefDisplayPage() {
                 {/* Header */}
                 <div style={{ marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <h1 style={{ fontSize: 'clamp(1.5rem, 6vw, 2rem)', fontWeight: '800', letterSpacing: '-1px', margin: 0 }}>
+                        <h1 style={{ fontSize: 'clamp(1.5rem, 6vw, 2rem)', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>
                             {briefMeta?.company_name}
                         </h1>
                         {saved && <BookmarkCheck size={20} style={{ color: 'var(--accent)' }} />}
                     </div>
-                    <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: 0 }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>
                         Generated {formatDate(briefMeta?.created_at)} · {briefMeta?.length} brief · {sections.length} sections
                     </p>
                 </div>
 
                 {/* Poor quality banner */}
                 {poorQualityCount >= 3 && (
-                    <div style={{ background: 'var(--accent-15)', border: '1px solid var(--accent-40)', borderRadius: '6px', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                    <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius)', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                         <span style={{ color: 'var(--accent)' }}>Brief quality was poor? Let us know →</span>
                         <span style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>
                             Give feedback
@@ -343,7 +343,7 @@ export default function BriefDisplayPage() {
 
                 {/* Diff Panel */}
                 {showDiff && diffData?.has_diff && (
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--accent-40)', borderRadius: '6px', padding: '1.5rem', marginBottom: '1.5rem', position: 'relative' }}>
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem', position: 'relative' }}>
                         <button onClick={() => setShowDiff(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
                         <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text)' }}>Changes since {formatDate(diffData.compared_dates[1])}</h3>
                         
@@ -378,7 +378,7 @@ export default function BriefDisplayPage() {
                 <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.5rem' }}>
                     {['tabs', 'cards'].map((v) => (
                         <button key={v} onClick={() => setView(v)}
-                            style={{ padding: '0.35rem 0.85rem', borderRadius: '4px', border: `1px solid ${view === v ? 'var(--accent)' : 'var(--border)'}`, background: view === v ? 'var(--accent-15)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize' }}>
+                            style={{ padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${view === v ? 'var(--accent-border)' : 'var(--border)'}`, background: view === v ? 'var(--accent-soft)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize' }}>
                             {v}
                         </button>
                     ))}
@@ -390,7 +390,7 @@ export default function BriefDisplayPage() {
                         <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
                             {sections.map((s) => (
                                 <button key={s} onClick={() => setActiveTab(s)}
-                                    style={{ padding: '0.6rem 1rem', border: 'none', borderBottom: `2px solid ${activeTab === s ? 'var(--accent)' : 'transparent'}`, background: 'transparent', color: activeTab === s ? 'var(--text)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: activeTab === s ? '700' : '400', whiteSpace: 'nowrap' }}>
+                                    style={{ padding: '0.6rem 1rem', border: 'none', borderBottom: `2px solid ${activeTab === s ? 'var(--accent)' : 'transparent'}`, background: 'transparent', color: activeTab === s ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: activeTab === s ? '700' : '400', whiteSpace: 'nowrap' }}>
                                     {SECTION_LABELS[s] || s}
                                 </button>
                             ))}
@@ -412,7 +412,7 @@ export default function BriefDisplayPage() {
 
                 {/* Sources */}
                 {sources.length > 0 && (
-                    <div style={{ marginTop: '2rem', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div style={{ marginTop: '2rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
                         <button onClick={() => setSourcesOpen(!sourcesOpen)}
                             style={{ width: '100%', background: 'var(--surface)', border: 'none', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-sec)', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif' }}>
                             <span>{sources.length} sources used</span>
@@ -444,25 +444,25 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView }) {
     const confidence = typeof data === 'object' ? data.confidence : null
 
     return (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700' }}>
                     {SECTION_LABELS[section] || section}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {confidence && (
-                        <span style={{ fontSize: '0.65rem', color: CONFIDENCE_COLORS[confidence] || 'var(--text-sec)', border: `1px solid ${CONFIDENCE_COLORS[confidence] || 'var(--text-sec)'}`, borderRadius: '3px', padding: '0.1rem 0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span style={{ fontSize: '0.65rem', color: CONFIDENCE_COLORS[confidence] || 'var(--text-muted)', background: 'var(--accent-soft)', border: `1px solid ${CONFIDENCE_COLORS[confidence] === 'var(--accent)' ? 'var(--accent-border)' : CONFIDENCE_COLORS[confidence] || 'var(--border)'}`, borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {confidence}
                         </span>
                     )}
                     {!isShareView && (
                         <>
                             <button onClick={() => onFeedback(section, feedback[section] === 'up' ? null : 'up')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? '#22C55E' : '#444444', padding: '0.2rem' }}>
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? 'var(--success)' : 'var(--text-muted)', padding: '0.2rem' }}>
                                 <ThumbsUp size={13} />
                             </button>
                             <button onClick={() => onFeedback(section, feedback[section] === 'down' ? null : 'down')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? '#EF4444' : '#444444', padding: '0.2rem' }}>
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? 'var(--danger)' : 'var(--text-muted)', padding: '0.2rem' }}>
                                 <ThumbsDown size={13} />
                             </button>
                         </>
@@ -472,14 +472,14 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView }) {
             {(() => {
                 if (!content) return null
                 if (typeof content === 'string') {
-                    return <p style={{ color: '#CCCCCC', fontSize: '0.875rem', lineHeight: '1.7', margin: 0 }}>{content}</p>
+                    return <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: 0 }}>{content}</p>
                 }
                 if (Array.isArray(content)) {
                     return content.map((item, idx) => {
                         if (!item) return null
                         if (typeof item === 'string') {
                             return (
-                                <p key={idx} style={{ color: '#CCCCCC', fontSize: '0.875rem', lineHeight: '1.7', margin: idx === content.length - 1 ? 0 : '0 0 0.5rem 0' }}>
+                                <p key={idx} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: idx === content.length - 1 ? 0 : '0 0 0.5rem 0' }}>
                                     {item}
                                 </p>
                             )
@@ -489,7 +489,7 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView }) {
                             return (
                                 <div key={idx} style={{ marginBottom: idx === content.length - 1 ? 0 : '1rem' }}>
                                     {entries.map(([k, v], i) => (
-                                        <p key={i} style={{ color: '#CCCCCC', fontSize: '0.875rem', lineHeight: '1.7', margin: '0 0 0.25rem 0' }}>
+                                        <p key={i} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: '0 0 0.25rem 0' }}>
                                             <strong>{k}:</strong> {String(v)}
                                         </p>
                                     ))}
@@ -502,7 +502,7 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView }) {
                 if (typeof content === 'object') {
                     const entries = Object.entries(content)
                     return entries.map(([k, v], idx) => (
-                        <p key={idx} style={{ color: '#CCCCCC', fontSize: '0.875rem', lineHeight: '1.7', margin: idx === entries.length - 1 ? 0 : '0 0 0.5rem 0' }}>
+                        <p key={idx} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: idx === entries.length - 1 ? 0 : '0 0 0.5rem 0' }}>
                             <strong>{k}:</strong> {String(v)}
                         </p>
                     ))

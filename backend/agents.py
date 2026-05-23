@@ -238,6 +238,10 @@ def build_comparison_crew(company1: str, company2: str, length: str, custom_prom
     llm = get_llm()
     length_instruction = LENGTH_INSTRUCTIONS.get(length, LENGTH_INSTRUCTIONS["medium"])
 
+    if custom_prompt:
+        # Add custom_focus to comparison output
+        pass  # custom_focus is handled in the formatter task prompt
+
     researcher1 = Agent(
         role=f"Company Intelligence Researcher ({company1})",
         goal=f"Find comprehensive information about {company1}.",
@@ -333,12 +337,13 @@ def build_comparison_crew(company1: str, company2: str, length: str, custom_prom
     task4 = Task(
         description=(
             f"Format the comparison into a single valid JSON object.\n"
-            f"Keys must be exactly: company1_summary, company2_summary, financial_comparison, market_position, recent_developments, strengths_weaknesses, recommendation.\n"
+            f"Keys must be exactly: company1_summary, company2_summary, financial_comparison, market_position, recent_developments, strengths_weaknesses, recommendation" + (", custom_focus" if custom_prompt else "") + ".\n"
             f"Each section must have: 'content' ({length_instruction}), 'confidence' ('high', 'medium', or 'low'), and 'sources' (list of URLs).\n"
             f"CRITICAL: Output pure JSON only.\n"
             f"CRITICAL: Only include URLs in sources that were actually returned by the research agents. Do NOT invent, fabricate, or guess URLs. If you don't have a real URL for a section, use an empty list [] for sources. Never use example.com or placeholder URLs."
+            + (f"\n\nCRITICAL: You MUST include a 'custom_focus' key in your JSON output. The user asked: '{custom_prompt}'\nThe custom_focus section must directly answer this with specific facts found about both companies.\nStructure: \"custom_focus\": {{\"content\": \"...\", \"confidence\": \"high/medium/low\", \"sources\": [...]}}" if custom_prompt else "")
         ),
-        expected_output="A single valid JSON object with the requested keys.",
+        expected_output="A single valid JSON object with the requested keys." + (f" MUST include 'custom_focus' key answering: {custom_prompt}" if custom_prompt else ""),
         agent=formatter,
         context=[task3],
     )

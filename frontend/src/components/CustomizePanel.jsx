@@ -46,7 +46,7 @@ export default function CustomizePanel({ onClose }) {
     <>
 
       <div className="fixed top-0 right-0 h-full w-[280px] z-50 border-l flex flex-col"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <span className="font-semibold text-sm">Customize</span>
           <button onClick={onClose} className="text-lg leading-none transition-colors" style={{ color: 'var(--text-sec)' }}>✕</button>
@@ -54,15 +54,15 @@ export default function CustomizePanel({ onClose }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-sec)' }}>Theme</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Theme</p>
             <div className="flex gap-2">
               {['dark', 'light'].map(t => (
                 <button key={t} onClick={() => handleTheme(t)}
                   className="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors capitalize"
                   style={{
-                    background: theme === t ? 'var(--accent)' : 'transparent',
-                    color: theme === t ? 'var(--accent-text)' : 'var(--text-sec)',
-                    borderColor: theme === t ? 'var(--accent)' : 'var(--border)'
+                    background: theme === t ? 'var(--accent-soft)' : 'transparent',
+                    color: theme === t ? 'var(--accent)' : 'var(--text-muted)',
+                    borderColor: theme === t ? 'var(--accent-border)' : 'var(--border)'
                   }}>
                   {t}
                 </button>
@@ -71,15 +71,15 @@ export default function CustomizePanel({ onClose }) {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-sec)' }}>Default View</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Default View</p>
             <div className="flex gap-2">
               {['tabs', 'cards'].map(v => (
                 <button key={v} onClick={() => handleDefaultView(v)}
                   className="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors capitalize"
                   style={{
-                    background: defaultView === v ? 'var(--accent)' : 'transparent',
-                    color: defaultView === v ? 'var(--accent-text)' : 'var(--text-sec)',
-                    borderColor: defaultView === v ? 'var(--accent)' : 'var(--border)'
+                    background: defaultView === v ? 'var(--accent-soft)' : 'transparent',
+                    color: defaultView === v ? 'var(--accent)' : 'var(--text-muted)',
+                    borderColor: defaultView === v ? 'var(--accent-border)' : 'var(--border)'
                   }}>
                   {v}
                 </button>
@@ -88,7 +88,7 @@ export default function CustomizePanel({ onClose }) {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-sec)' }}>Panels</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Panels</p>
             <div className="space-y-3">
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-sm">Show Watchlist</span>
@@ -106,7 +106,7 @@ export default function CustomizePanel({ onClose }) {
           <button
             onClick={onClose}
             className="w-full py-2 rounded-lg text-sm font-semibold"
-            style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', cursor: 'pointer' }}>
+            style={{ background: 'var(--gradient)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: 'var(--glow)' }}>
             Save & Close
           </button>
         </div>
