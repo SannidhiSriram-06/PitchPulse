@@ -1,13 +1,14 @@
 export function BriefCardSkeleton() {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem' }}
-      className="space-y-3">
-      <div className="animate-pulse rounded h-5 w-3/4" style={{ background: 'var(--surface-2)' }} />
-      <div className="animate-pulse rounded h-4 w-full" style={{ background: 'var(--surface-2)' }} />
-      <div className="animate-pulse rounded h-4 w-5/6" style={{ background: 'var(--surface-2)' }} />
-      <div className="flex gap-2 pt-1">
-        <div className="animate-pulse rounded h-3 w-20" style={{ background: 'var(--surface-2)' }} />
-        <div className="animate-pulse rounded h-3 w-16" style={{ background: 'var(--surface-2)' }} />
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
+      <div style={{ animation: 'pulse 2s infinite' }}>
+        <div style={{ background: 'var(--surface-2)', height: '24px', width: '60%', borderRadius: '4px', marginBottom: '1rem' }} />
+        <div style={{ background: 'var(--surface-2)', height: '14px', width: '100%', borderRadius: '4px', marginBottom: '0.5rem' }} />
+        <div style={{ background: 'var(--surface-2)', height: '14px', width: '90%', borderRadius: '4px', marginBottom: '1.5rem' }} />
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ background: 'var(--surface-2)', height: '20px', width: '60px', borderRadius: '99px' }} />
+          <div style={{ background: 'var(--surface-2)', height: '20px', width: '80px', borderRadius: '99px' }} />
+        </div>
       </div>
     </div>
   );
@@ -15,11 +16,9 @@ export function BriefCardSkeleton() {
 
 export function WatchlistItemSkeleton() {
   return (
-    <div className="flex items-center gap-3 p-2">
-      <div className="flex-1 space-y-1">
-        <div className="animate-pulse rounded h-4 w-2/3" style={{ background: 'var(--surface-2)' }} />
-        <div className="animate-pulse rounded h-3 w-1/2" style={{ background: 'var(--surface-2)' }} />
-      </div>
+    <div style={{ padding: '0.6rem 0.75rem', animation: 'pulse 2s infinite' }}>
+      <div style={{ background: 'var(--surface-2)', height: '14px', width: '70%', borderRadius: '4px', marginBottom: '0.4rem' }} />
+      <div style={{ background: 'var(--surface-2)', height: '10px', width: '40%', borderRadius: '4px' }} />
     </div>
   );
 }

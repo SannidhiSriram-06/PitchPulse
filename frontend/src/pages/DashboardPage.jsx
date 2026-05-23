@@ -12,6 +12,24 @@ import { BriefCardSkeleton, WatchlistItemSkeleton } from '../components/Skeleton
 import usePrefsStore from '../store/prefsStore'
 import { useClerk, useUser } from '@clerk/clerk-react'
 
+function CountUpNumber({ targetValue }) {
+  const [count, setCount] = useState(0)
+  
+  useEffect(() => {
+    let startTime
+    const duration = 1000
+    const animate = (time) => {
+      if (!startTime) startTime = time
+      const progress = Math.min((time - startTime) / duration, 1)
+      setCount(Math.floor(progress * targetValue))
+      if (progress < 1) requestAnimationFrame(animate)
+    }
+    requestAnimationFrame(animate)
+  }, [targetValue])
+  
+  return <>{count}</>
+}
+
 export default function DashboardPage() {
     useClerkToken()
     const { signOut } = useClerk()
@@ -34,8 +52,6 @@ export default function DashboardPage() {
     const [openNote, setOpenNote] = useState(null)
     const [noteTexts, setNoteTexts] = useState({})
     const [noteSaved, setNoteSaved] = useState({})
-
-
 
     useEffect(() => {
         if (clerkUser) syncClerkUser(clerkUser)
@@ -155,69 +171,119 @@ export default function DashboardPage() {
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Top bar */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', position: 'sticky', top: 0, background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', gap: '0.5rem' }}>
+            <nav style={{ 
+                borderBottom: '1px solid var(--border)', 
+                padding: '0 1rem', 
+                position: 'sticky', top: 0, 
+                background: 'var(--bg)cc', 
+                backdropFilter: 'blur(20px)', 
+                WebkitBackdropFilter: 'blur(20px)', 
+                zIndex: 100 
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', gap: '1rem' }}>
 
-                    {isMobile ? (
-                        <button onClick={() => setMobileDrawerOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center' }}>
-                            <Menu size={20} />
-                        </button>
-                    ) : (
-                        <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', flexShrink: 0, background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            PitchPulse
-                        </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {isMobile && (
+                            <button onClick={() => setMobileDrawerOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                                <Menu size={20} />
+                            </button>
+                        )}
+                        <div style={{ fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.5px', flexShrink: 0 }}>
+                            <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                        </div>
+                    </div>
 
-                    <input id="search-bar"
-                        value={search} onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search briefs..."
-                        style={{ flex: 1, maxWidth: '400px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
-                    />
+                    <div style={{ flex: 1, maxWidth: '480px', position: 'relative' }}>
+                        <input id="search-bar"
+                            value={search} onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search briefs..."
+                            style={{ 
+                                width: '100%', 
+                                background: 'var(--surface)', 
+                                border: '1px solid var(--border)', 
+                                borderRadius: 'var(--radius)', 
+                                padding: '0.6rem 1rem', 
+                                color: 'var(--text)', 
+                                fontSize: '0.85rem', 
+                                outline: 'none',
+                                transition: 'all 0.15s'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = 'var(--border-accent)'}
+                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                        />
+                    </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                        <button id="customize-btn" onClick={() => setShowCustomize(true)} title="Customize"
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sec)', padding: '0.25rem' }}>
-                            ⚙
-                        </button>
-                        <button id="tour-help-btn" onClick={startTour} title="Need a refresher?"
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sec)', padding: '0.25rem', fontSize: '1rem', fontWeight: 'bold' }}>
-                            ?
-                        </button>
-                        <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                        </button>
-                        <button onClick={() => navigate('/brief/new')}
-                            style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: isMobile ? '0.5rem' : '0.5rem 1rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: 'var(--glow)' }}>
-                            <Plus size={14} /> {!isMobile && 'New Brief'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                        {!isMobile && (
+                            <button onClick={() => navigate('/brief/new')}
+                                style={{ 
+                                    background: 'var(--accent)', 
+                                    border: 'none', 
+                                    borderRadius: 'var(--radius)', 
+                                    padding: '0.6rem 1.25rem', 
+                                    color: '#000', 
+                                    fontWeight: '700', 
+                                    cursor: 'pointer', 
+                                    fontSize: '0.8rem', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '0.5rem',
+                                    transition: 'filter 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}>
+                                <Plus size={16} /> New Brief
+                            </button>
+                        )}
+                        
+                        <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
+                            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                         </button>
 
                         <div style={{ position: 'relative' }}>
                             <div onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--accent-text)', fontWeight: '700', fontSize: '0.8rem' }}>
+                                style={{ 
+                                    width: '36px', height: '36px', 
+                                    borderRadius: '50%', 
+                                    background: 'var(--surface-2)', 
+                                    border: '1px solid var(--border)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                    cursor: 'pointer', color: 'var(--accent)', 
+                                    fontWeight: '700', fontSize: '0.85rem' 
+                                }}>
                                 {user?.email?.[0]?.toUpperCase() || 'U'}
                             </div>
                             {userMenuOpen && (
-                                <div style={{ position: 'absolute', right: 0, top: '40px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', minWidth: '180px', zIndex: 200 }}>
-                                    <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-sec)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <div style={{ 
+                                    position: 'absolute', right: 0, top: '48px', 
+                                    background: 'var(--surface)', 
+                                    border: '1px solid var(--border)', 
+                                    borderRadius: 'var(--radius-lg)', 
+                                    minWidth: '200px', 
+                                    zIndex: 200,
+                                    overflow: 'hidden',
+                                    boxShadow: 'var(--shadow)'
+                                }}>
+                                    <div style={{ padding: '0.8rem 1rem', borderBottom: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                         {user?.email}
                                     </div>
                                     <div onClick={() => { navigate('/history'); setUserMenuOpen(false) }}
-                                        style={{ padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg)'}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-sec)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                        <Clock size={14} /> History
+                                        <Clock size={16} /> History
                                     </div>
                                     <div onClick={() => { navigate('/settings'); setUserMenuOpen(false) }}
-                                        style={{ padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg)'}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-sec)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                        <Settings size={14} /> Settings
+                                        <Settings size={16} /> Settings
                                     </div>
                                     <div onClick={handleLogout}
-                                        style={{ padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem', borderTop: '1px solid var(--border)' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg)'}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid var(--border)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                        <LogOut size={14} /> Log out
+                                        <LogOut size={16} /> Log out
                                     </div>
                                 </div>
                             )}
@@ -226,187 +292,85 @@ export default function DashboardPage() {
                 </div>
             </nav>
 
-            <div style={{ display: 'flex', height: 'calc(100vh - 56px)' }}>
+            <div style={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
 
                 {/* Sidebar */}
                 {!isMobile && (
-                    <aside id="watchlist-sidebar" style={{ width: sidebarOpen ? '240px' : '48px', borderRight: '1px solid var(--border)', padding: sidebarOpen ? '1.25rem' : '1.25rem 0.25rem', overflowY: 'auto', flexShrink: 0, transition: 'width 0.2s ease', position: 'relative', background: 'var(--bg-2)' }}>
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ position: 'absolute', top: '0.75rem', right: '0.25rem', background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: '0.2rem', zIndex: 10 }}>
-                            {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                        </button>
-
-                        {sidebarOpen && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', marginTop: '1.5rem' }}>Watchlist</p>}
-                        {!sidebarOpen && <div style={{ height: '2.5rem' }} />}
-
-                        {loading ? (
-                            sidebarOpen ? Array.from({ length: 3 }).map((_, i) => <WatchlistItemSkeleton key={i} />) : null
-                        ) : watchlist.length === 0 && sidebarOpen ? (
-                            <p style={{ color: '#444444', fontSize: '0.8rem', marginBottom: '1rem' }}>No companies pinned yet. Add a company below to get started.</p>
-                        ) : (
-                            watchlist.map((item) => (
-                                <div key={item.id}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', padding: '0.5rem 0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: 'var(--radius-sm)', transition: 'background 0.2s', margin: '0 -0.5rem' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                        {sidebarOpen && (
-                                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.2rem', display: 'flex', alignItems: 'center' }}>
-                                                    {item.company_name}
-                                                    {alerts[item.company_name]?.has_recent_news && (
-                                                        <span
-                                                            style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', marginLeft: 6 }}
-                                                            title={alerts[item.company_name]?.headline || 'Recent news available'}
-                                                        />
-                                                    )}
-                                                </div>
-                                                <div style={{ fontSize: '0.7rem', color: item.last_briefed_at ? '#666' : '#444' }}>
-                                                    {item.last_briefed_at && formatLastBriefed(item.last_briefed_at) ? `Last briefed ${formatLastBriefed(item.last_briefed_at)}` : 'Never briefed'}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div style={{ display: 'flex', flexDirection: sidebarOpen ? 'row' : 'column', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
-                                            <button onClick={() => navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`)}
-                                                style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
-                                                title="Brief Me">
-                                                <Zap size={12} />
-                                            </button>
-                                            <button
-                                                onClick={() => setOpenNote(openNote === item.company_name ? null : item.company_name)}
-                                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.3rem 0.5rem', color: (noteTexts[item.company_name] || '').trim() ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', transition: 'color 0.2s' }}
-                                                title="Notes"
-                                            >
-                                                📝
-                                            </button>
-                                            {!sidebarOpen && (
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isWithin7Days(item.last_briefed_at) ? 'var(--accent)' : 'var(--border)', marginTop: '4px' }} />
-                                            )}
-                                            {sidebarOpen && (
-                                                <button onClick={() => removeFromWatchlist(item.id)}
-                                                    style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', padding: '0.3rem', transition: 'color 0.2s' }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#FF4444'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#555'}
-                                                    title="Remove">
-                                                    <X size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {openNote === item.company_name && (
-                                        <div style={{ marginTop: 4, marginBottom: 8 }}>
-                                            <textarea
-                                                value={noteTexts[item.company_name] || ''}
-                                                onChange={(e) => setNoteTexts((prev) => ({ ...prev, [item.company_name]: e.target.value }))}
-                                                onBlur={async () => {
-                                                    try {
-                                                        await api.post(`/api/watchlist/notes/${encodeURIComponent(item.company_name)}`, {
-                                                            note_text: noteTexts[item.company_name] || '',
-                                                        })
-                                                        setNoteSaved((prev) => ({ ...prev, [item.company_name]: true }))
-                                                        setTimeout(() => {
-                                                            setNoteSaved((prev) => ({ ...prev, [item.company_name]: false }))
-                                                        }, 2000)
-                                                    } catch (e) { /* silent fail */ }
-                                                }}
-                                                placeholder="Add private notes about this company..."
-                                                rows={3}
-                                                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: '0.75rem', padding: '6px 8px', marginTop: 4, resize: 'vertical' }}
-                                            />
-                                            {noteSaved[item.company_name] && <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>Saved ✓</span>}
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        )}
-
-                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '1rem', justifyContent: sidebarOpen ? 'flex-start' : 'center' }}>
-                            {sidebarOpen ? (
-                                <>
-                                    <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
-                                        placeholder="Add company..."
-                                        style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
-                                    />
-                                    <button onClick={addToWatchlist}
-                                        style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                        +
-                                    </button>
-                                </>
-                            ) : (
-                                <button onClick={() => setSidebarOpen(true)}
-                                    style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                    +
-                                </button>
-                            )}
+                    <aside id="watchlist-sidebar" style={{ 
+                        width: sidebarOpen ? '260px' : '64px', 
+                        borderRight: '1px solid var(--border)', 
+                        padding: '1.5rem 0.75rem', 
+                        overflowY: 'auto', flexShrink: 0, 
+                        transition: 'all 0.2s ease', 
+                        background: 'var(--surface)' 
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', marginBottom: '2rem' }}>
+                            {sidebarOpen && <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700' }}>Watchlist</p>}
+                            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.4rem' }}>
+                                {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                            </button>
                         </div>
-                    </aside>
-                )}
 
-                {/* Mobile Drawer */}
-                {isMobile && (
-                    <>
-                        {mobileDrawerOpen && <div onClick={() => setMobileDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: '#0A0A0A99', zIndex: 499 }} />}
-                        <div style={{ position: 'fixed', left: 0, top: 0, height: '100vh', width: '280px', background: 'var(--bg-2)', borderRight: '1px solid var(--border)', zIndex: 500, transition: 'transform 0.25s ease', transform: mobileDrawerOpen ? 'translateX(0)' : 'translateX(-100%)', padding: '1.25rem', overflowY: 'auto', pointerEvents: mobileDrawerOpen ? 'auto' : 'none' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                                    Watchlist
-                                </span>
-                                <button onClick={() => setMobileDrawerOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: 0 }}>
-                                    <X size={18} />
-                                </button>
-                            </div>
-                            
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {loading ? (
-                                Array.from({ length: 3 }).map((_, i) => <WatchlistItemSkeleton key={i} />)
-                            ) : watchlist.length === 0 ? (
-                                <p style={{ color: '#444444', fontSize: '0.8rem', marginBottom: '1rem' }}>No companies pinned yet. Add a company below to get started.</p>
+                                sidebarOpen ? Array.from({ length: 3 }).map((_, i) => <WatchlistItemSkeleton key={i} />) : null
                             ) : (
                                 watchlist.map((item) => (
-                                    <div key={item.id}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', gap: '0.5rem', borderRadius: 'var(--radius-sm)', transition: 'background 0.2s', margin: '0 -0.5rem' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.2rem', display: 'flex', alignItems: 'center' }}>
-                                                    {item.company_name}
+                                    <div key={item.id} style={{ position: 'relative' }}>
+                                        <div style={{ 
+                                            display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', 
+                                            padding: '0.6rem 0.75rem', 
+                                            borderRadius: 'var(--radius-sm)', 
+                                            transition: 'background 0.2s', 
+                                            cursor: 'pointer',
+                                            background: openNote === item.company_name ? 'var(--surface-2)' : 'transparent'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                                        onMouseLeave={(e) => { if (openNote !== item.company_name) e.currentTarget.style.background = 'transparent' }}>
+                                            {sidebarOpen ? (
+                                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                        {item.company_name}
+                                                        {alerts[item.company_name]?.has_recent_news && (
+                                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} />
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                                                        {item.last_briefed_at ? formatLastBriefed(item.last_briefed_at) : 'Never briefed'}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ position: 'relative' }}>
+                                                    <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' }}>
+                                                        {item.company_name[0]}
+                                                    </div>
                                                     {alerts[item.company_name]?.has_recent_news && (
-                                                        <span
-                                                            style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', marginLeft: 6 }}
-                                                            title={alerts[item.company_name]?.headline || 'Recent news available'}
-                                                        />
+                                                        <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', border: '2px solid var(--surface)' }} />
                                                     )}
                                                 </div>
-                                                <div style={{ fontSize: '0.7rem', color: item.last_briefed_at ? '#666' : '#444' }}>
-                                                    {item.last_briefed_at && formatLastBriefed(item.last_briefed_at) ? `Last briefed ${formatLastBriefed(item.last_briefed_at)}` : 'Never briefed'}
+                                            )}
+
+                                            {sidebarOpen && (
+                                                <div style={{ display: 'flex', gap: '0.25rem', opacity: openNote === item.company_name ? 1 : 0, transition: 'opacity 0.2s' }} className="watchlist-actions">
+                                                    <button onClick={() => navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`)}
+                                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.3rem' }} title="Brief">
+                                                        <Zap size={14} />
+                                                    </button>
+                                                    <button onClick={() => setOpenNote(openNote === item.company_name ? null : item.company_name)}
+                                                        style={{ background: 'none', border: 'none', color: (noteTexts[item.company_name] || '').trim() ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', padding: '0.3rem' }} title="Notes">
+                                                        <Clock size={14} />
+                                                    </button>
+                                                    <button onClick={() => removeFromWatchlist(item.id)}
+                                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.3rem' }} title="Remove">
+                                                        <X size={14} />
+                                                    </button>
                                                 </div>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                                                <button onClick={() => { setMobileDrawerOpen(false); navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`) }}
-                                                    style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.5rem', color: 'var(--accent)', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
-                                                    title="Brief Me">
-                                                    <Zap size={12} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setOpenNote(openNote === item.company_name ? null : item.company_name)}
-                                                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.3rem 0.5rem', color: (noteTexts[item.company_name] || '').trim() ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', transition: 'color 0.2s' }}
-                                                    title="Notes"
-                                                >
-                                                    📝
-                                                </button>
-                                                <button onClick={() => removeFromWatchlist(item.id)}
-                                                    style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', padding: '0.3rem', transition: 'color 0.2s' }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#FF4444'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#555'}
-                                                    title="Remove">
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
+                                            )}
                                         </div>
-                                        {openNote === item.company_name && (
-                                            <div style={{ marginTop: 4, marginBottom: 8 }}>
+                                        <style>{`div:hover .watchlist-actions { opacity: 1 !important; }`}</style>
+                                        
+                                        {sidebarOpen && openNote === item.company_name && (
+                                            <div style={{ padding: '0.5rem 0.75rem' }}>
                                                 <textarea
                                                     value={noteTexts[item.company_name] || ''}
                                                     onChange={(e) => setNoteTexts((prev) => ({ ...prev, [item.company_name]: e.target.value }))}
@@ -421,160 +385,248 @@ export default function DashboardPage() {
                                                             }, 2000)
                                                         } catch (e) { /* silent fail */ }
                                                     }}
-                                                    placeholder="Add private notes about this company..."
+                                                    placeholder="Private notes..."
                                                     rows={3}
-                                                    style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: '0.75rem', padding: '6px 8px', marginTop: 4, resize: 'vertical' }}
+                                                    style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: '0.75rem', padding: '0.5rem', outline: 'none', resize: 'none' }}
                                                 />
-                                                {noteSaved[item.company_name] && <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>Saved ✓</span>}
                                             </div>
                                         )}
                                     </div>
                                 ))
                             )}
-
-                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '1rem' }}>
-                                <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
-                                    placeholder="Add company..."
-                                    style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.4rem 0.5rem', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', minWidth: 0 }}
-                                />
-                                <button onClick={addToWatchlist}
-                                    style={{ background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.4rem 0.6rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                    +
-                                </button>
-                            </div>
                         </div>
-                    </>
+
+                        <div style={{ marginTop: '1.5rem', padding: sidebarOpen ? '0' : '0 0.5rem' }}>
+                            {sidebarOpen ? (
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
+                                        placeholder="Add company..."
+                                        style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text)', fontSize: '0.75rem', outline: 'none' }}
+                                    />
+                                    <button onClick={addToWatchlist}
+                                        style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: '#000', fontWeight: '700', cursor: 'pointer' }}>
+                                        <Plus size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setSidebarOpen(true)}
+                                    style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0', color: '#000', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
+                                    <Plus size={18} />
+                                </button>
+                            )}
+                        </div>
+                    </aside>
                 )}
 
-                {/* Main */}
-                <main style={{ flex: 1, padding: isMobile ? '1.5rem 1rem' : '2.5rem', overflowY: 'auto', width: '100%', background: 'var(--bg)' }}>
-                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: '2rem', gap: '1rem' }}>
-                        <div>
-                            <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: '700', letterSpacing: '-0.5px', marginBottom: '0.4rem' }}>Dashboard</h1>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem' }}>Welcome back. Here's your intelligence overview.</p>
+                {/* Main Content */}
+                <main style={{ flex: 1, overflowY: 'auto', background: 'var(--bg)', position: 'relative' }}>
+                    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem 5rem' : '2.5rem' }}>
+                        
+                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: '3rem', gap: '1.5rem' }}>
+                            <div>
+                                <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '0.5rem' }}>Dashboard</h1>
+                                <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem' }}>Welcome back. Here's your intelligence overview.</p>
+                            </div>
+                            <button id="generate-brief-btn" onClick={() => navigate('/brief/new')}
+                                style={{ 
+                                    width: isMobile ? '100%' : 'auto', 
+                                    background: 'var(--accent)', border: 'none', 
+                                    borderRadius: 'var(--radius)', padding: '0.8rem 1.75rem', 
+                                    color: '#000', fontWeight: '800', 
+                                    cursor: 'pointer', fontSize: '0.9rem',
+                                    boxShadow: '0 0 12px #a3e63510',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                                ⚡ Generate Brief
+                            </button>
                         </div>
-                        <button id="generate-brief-btn" onClick={() => navigate('/brief/new')}
-                            style={{ width: isMobile ? '100%' : 'auto', background: 'var(--accent)', border: 'none', borderRadius: '8px', padding: '0.75rem 1.5rem', color: '#000', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', boxShadow: '0 4px 14px 0 rgba(200,255,0,0.15)', transition: 'transform 0.2s' }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                            + Generate Brief
-                        </button>
-                    </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '3rem' }}>
-                        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem' }}>
-                            <div style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Total Briefs</div>
-                            <div style={{ color: 'var(--accent)', fontSize: '2.5rem', fontWeight: '700', fontFamily: 'Space Grotesk, sans-serif' }}>{briefs.length}</div>
-                        </div>
-                        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem' }}>
-                            <div style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Watchlist</div>
-                            <div style={{ color: 'var(--accent)', fontSize: '2.5rem', fontWeight: '700', fontFamily: 'Space Grotesk, sans-serif' }}>{watchlist.length}</div>
-                        </div>
-                        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Last Brief Generated</div>
-                            <div style={{ color: 'var(--accent)', fontSize: '1.5rem', fontWeight: '700', fontFamily: 'Space Grotesk, sans-serif', marginTop: 'auto', lineHeight: '1.2' }}>
-                                {briefs.length > 0 ? (
-                                    formatLastBriefed(briefs[0].created_at) ||
-                                    new Date(briefs[0].created_at.endsWith('Z') || briefs[0].created_at.includes('+') ? briefs[0].created_at : briefs[0].created_at + 'Z').toLocaleDateString(undefined, {month:'short', day:'numeric'})
-                                ) : 'None yet'}
+                        {/* Stats Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Total Briefs</div>
+                                <div style={{ color: 'var(--text)', fontSize: '2.5rem', fontWeight: '800' }}><CountUpNumber targetValue={briefs.length} /></div>
+                            </div>
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Companies Tracked</div>
+                                <div style={{ color: 'var(--text)', fontSize: '2.5rem', fontWeight: '800' }}><CountUpNumber targetValue={watchlist.length} /></div>
+                            </div>
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Last Brief</div>
+                                <div style={{ color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800', marginTop: '1rem' }}>
+                                    {briefs.length > 0 ? formatLastBriefed(briefs[0].created_at) || 'Today' : 'None yet'}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '1.25rem', letterSpacing: '-0.3px' }}>Recent Briefs</h2>
-                    <div id="briefs-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem', paddingBottom: isMobile ? '60px' : '0' }}>
-                        {loading ? (
-                            Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
-                        ) : filteredBriefs.length === 0 ? (
-                            <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 1rem', textAlign: 'center', gap: '1.5rem', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
-                                <div style={{ background: 'var(--gradient)', padding: '1.25rem', borderRadius: '50%' }}>
-                                    <Zap size={40} color="#fff" />
-                                </div>
-                                <div>
-                                    <h3 style={{ color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>No briefs yet</h3>
-                                    <p style={{ color: 'var(--text-sec)' }}>Generate your first brief to see it here. Takes under 60 seconds.</p>
-                                </div>
-                                <button onClick={() => navigate('/brief/new')}
-                                    style={{ padding: '0.75rem 1.5rem', borderRadius: 'var(--radius)', background: 'var(--gradient)', color: '#fff', fontWeight: '700', fontSize: '0.875rem', border: 'none', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', boxShadow: 'var(--glow)' }}>
-                                    + Generate Brief
-                                </button>
-                            </div>
-                        ) : (
-                            filteredBriefs.map((brief) => {
-                            const parsed = brief.brief || null
-                            const rawSnippet = parsed?.summary?.content || parsed?.news?.content || Object.values(parsed || {}).find(s => s?.content)?.content || null
-                            const snippet = rawSnippet ? (rawSnippet.length > 150 ? rawSnippet.slice(0, 150) + '...' : rawSnippet) : 'No preview available.'
-                            const sections = (Array.isArray(brief.sections_requested) ? brief.sections_requested : (brief.sections_requested || '').split(',')).filter(Boolean).map(s => s.trim())
-                            
-                            return (
-                                <div key={brief.id} onClick={() => navigate(`/brief/${brief.id}`)}
-                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.boxShadow = '0 4px 20px var(--accent-glow)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}>
-                                    
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                                        <h3 style={{ fontWeight: '800', fontSize: '1.25rem', letterSpacing: '-0.5px', color: 'var(--text)', flex: 1, paddingRight: '1rem' }}>{brief.company_name}</h3>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                                            {brief.saved && (
-                                                <Bookmark size={16} style={{ color: 'var(--accent)' }} fill="var(--accent)" />
-                                            )}
-                                            <button onClick={(e) => deleteBrief(e, brief.id)}
-                                                style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', padding: '0.2rem', transition: 'color 0.2s' }}
-                                                onMouseEnter={(e) => e.currentTarget.style.color = '#FF4444'}
-                                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-sec)'}>
-                                                <X size={16} />
-                                            </button>
-                                        </div>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '1.5rem', color: '#fff' }}>Recent Activity</h2>
+                        <div id="briefs-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
+                            {loading ? (
+                                Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
+                            ) : filteredBriefs.length === 0 ? (
+                                <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8rem 2rem', textAlign: 'center', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                                        <Zap size={28} color="var(--accent)" />
                                     </div>
+                                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.5rem' }}>No briefs yet</h3>
+                                    <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', marginBottom: '2rem' }}>Generate your first intelligence brief to get started.</p>
+                                    <button onClick={() => navigate('/brief/new')}
+                                        style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius)', padding: '0.75rem 1.5rem', color: '#000', fontWeight: '700', cursor: 'pointer' }}>
+                                        + Create Brief
+                                    </button>
+                                </div>
+                            ) : (
+                                filteredBriefs.map((brief, index) => {
+                                    const parsed = brief.brief || null
+                                    const rawSnippet = parsed?.summary?.content || parsed?.news?.content || Object.values(parsed || {}).find(s => s?.content)?.content || null
+                                    const snippet = rawSnippet ? (rawSnippet.length > 120 ? rawSnippet.slice(0, 120) + '...' : rawSnippet) : 'No preview available.'
+                                    const sections = (Array.isArray(brief.sections_requested) ? brief.sections_requested : (brief.sections_requested || '').split(',')).filter(Boolean).map(s => s.trim())
                                     
-                                    <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.6', flex: 1, marginBottom: '1.25rem', position: 'relative' }}>
-                                        {snippet}
-                                        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '100%', height: '2rem', background: 'linear-gradient(transparent, var(--surface))' }} />
-                                    </p>
-                                    
-                                    {sections.length > 0 && (
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
-                                            {sections.map(sec => (
-                                                <span key={sec} style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '99px', padding: '0.2rem 0.6rem', textTransform: 'capitalize' }}>
-                                                    {sec}
+                                    return (
+                                        <div key={brief.id} onClick={() => navigate(`/brief/${brief.id}`)}
+                                            className="card-hover"
+                                            style={{ 
+                                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                                borderRadius: 'var(--radius-lg)', padding: '1.5rem', 
+                                                cursor: 'pointer', display: 'flex', flexDirection: 'column', 
+                                                minHeight: '240px',
+                                                opacity: 0,
+                                                animation: 'slideUp 0.3s ease forwards',
+                                                animationDelay: `${index * 0.05}s`
+                                            }}>
+                                            
+
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                                <h3 style={{ fontWeight: '700', fontSize: '1rem', letterSpacing: '-0.5px' }}>{brief.company_name}</h3>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    {brief.saved && <Bookmark size={14} style={{ color: 'var(--accent)' }} fill="var(--accent)" />}
+                                                    <button onClick={(e) => deleteBrief(e, brief.id)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem' }}>
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', lineHeight: '1.6', marginBottom: '1.5rem', flex: 1 }}>
+                                                {snippet}
+                                            </p>
+                                            
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.5rem' }}>
+                                                {sections.slice(0, 4).map(sec => (
+                                                    <span key={sec} style={{ fontSize: '0.6rem', fontWeight: '600', color: 'var(--text-sec)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '99px', padding: '0.15rem 0.5rem', textTransform: 'uppercase' }}>
+                                                        {sec}
+                                                    </span>
+                                                ))}
+                                                {sections.length > 4 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>+{sections.length - 4}</span>}
+                                            </div>
+
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                                    {formatDate(brief.created_at).split(',')[0]}
+                                                </div>
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-sec)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.5rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                                                    {brief.length}
                                                 </span>
-                                            ))}
+                                            </div>
                                         </div>
-                                    )}
-
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: 'auto' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                            <Clock size={12} />
-                                            <span style={{ fontSize: '0.75rem' }}>{formatDate(brief.created_at)}</span>
-                                        </div>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)', fontWeight: '600', textTransform: 'capitalize', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.5rem' }}>
-                                            {brief.length}
-                                        </span>
-                                    </div>
-                                </div>
-                            )
-                        }))}
+                                    )
+                                })
+                            )}
+                        </div>
                     </div>
                 </main>
             </div>
-            {showCustomize && <CustomizePanel onClose={() => setShowCustomize(false)} />}
+
             {isMobile && (
-              <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-2)cc', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-around', padding: '0.5rem 0', zIndex: 100 }}>
-                <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--accent)', fontSize: '0.6rem', position: 'relative' }}>
-                  <span style={{ fontSize: '1.2rem' }}>🏠</span>Home
-                  <span style={{ position: 'absolute', top: '-4px', width: '4px', height: '4px', background: 'var(--gradient)', borderRadius: '50%' }} />
+              <nav style={{ 
+                  position: 'fixed', bottom: 0, left: 0, right: 0, 
+                  background: 'var(--surface)dd', backdropFilter: 'blur(20px)', 
+                  borderTop: '1px solid var(--border)', 
+                  display: 'flex', justifyContent: 'space-around', 
+                  padding: '0.75rem 0', zIndex: 100 
+              }}>
+                <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--accent)', fontSize: '0.6rem', position: 'relative' }}>
+                  <Clock size={20} /> Home
+                  <span style={{ position: 'absolute', top: 0, width: '16px', height: '2px', background: 'var(--accent)', borderRadius: '0 0 2px 2px' }} />
                 </button>
-                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
-                  <span style={{ fontSize: '1.2rem' }}>⚡</span>New Brief
+                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                  <Zap size={20} /> New
                 </button>
-                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
-                  <span style={{ fontSize: '1.2rem' }}>🕐</span>History
+                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                  <Clock size={20} /> History
                 </button>
-                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
-                  <span style={{ fontSize: '1.2rem' }}>⚙</span>Settings
+                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                  <Settings size={20} /> Settings
                 </button>
               </nav>
+            )}
+
+            {showCustomize && <CustomizePanel onClose={() => setShowCustomize(false)} />}
+
+            {/* Mobile Watchlist Drawer Backdrop */}
+            {isMobile && mobileDrawerOpen && (
+                <div onClick={() => setMobileDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: '#000000aa', zIndex: 499, backdropFilter: 'blur(4px)' }} />
+            )}
+            
+            {/* Mobile Watchlist Drawer */}
+            {isMobile && (
+                <div style={{ 
+                    position: 'fixed', left: 0, top: 0, bottom: 0, 
+                    width: '280px', background: 'var(--surface)', 
+                    borderRight: '1px solid var(--border)', 
+                    zIndex: 500, transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 
+                    transform: mobileDrawerOpen ? 'translateX(0)' : 'translateX(-100%)', 
+                    padding: '1.5rem', overflowY: 'auto' 
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)' }}>Watchlist</span>
+                        <button onClick={() => setMobileDrawerOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                            <X size={20} />
+                        </button>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {watchlist.map((item) => (
+                            <div key={item.id} style={{ padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-2)' }}>
+                                <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.5rem' }}>{item.company_name}</div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button onClick={() => { setMobileDrawerOpen(false); navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`) }}
+                                        style={{ flex: 1, background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', color: 'var(--accent)', borderRadius: '4px', padding: '0.4rem', fontSize: '0.7rem', fontWeight: '700' }}>
+                                        Brief
+                                    </button>
+                                    <button onClick={() => removeFromWatchlist(item.id)}
+                                        style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '4px', padding: '0.4rem' }}>
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ marginTop: '2rem', display: 'flex', gap: '0.5rem' }}>
+                        <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
+                            placeholder="Add company..."
+                            style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.6rem', color: 'var(--text)', fontSize: '0.8rem', outline: 'none' }}
+                        />
+                        <button onClick={addToWatchlist} style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.8rem', color: '#000' }}>
+                            <Plus size={18} />
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     )

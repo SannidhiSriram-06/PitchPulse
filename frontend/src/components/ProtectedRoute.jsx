@@ -9,12 +9,21 @@ export default function ProtectedRoute({ children }) {
             minHeight: '100vh',
             background: 'var(--bg)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--text-sec)',
-            fontSize: '0.875rem'
+            gap: '1.5rem'
         }}>
-            Loading...
+            <div style={{ 
+                width: '32px', height: '32px', 
+                border: '2px solid var(--border)', 
+                borderTopColor: 'var(--accent)', 
+                borderRadius: '50%', 
+                animation: 'spin 0.6s linear infinite' 
+            }} />
+            <div style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+                Authenticating
+            </div>
         </div>
     )
     if (!isSignedIn) return <Navigate to="/sign-in" replace />

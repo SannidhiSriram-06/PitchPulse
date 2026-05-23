@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useClerkToken } from '../hooks/useClerkToken'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, Sun, Moon, Trash2 } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import usePrefsStore from '../store/prefsStore'
 import api from '../lib/api'
@@ -48,147 +48,160 @@ export default function SettingsPage() {
         setDeleteLoading(false)
     }
 
-    const sectionStyle = {
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.5rem',
-        marginBottom: '1rem'
-    }
-
-    const labelStyle = {
-        fontSize: '0.7rem',
-        color: 'var(--text-muted)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.1em',
-        display: 'block',
-        marginBottom: '0.5rem'
-    }
-
     return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
-                <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                    <ArrowLeft size={16} /> Dashboard
+            <nav style={{ 
+                borderBottom: '1px solid var(--border)', 
+                padding: '0 1rem', 
+                height: '64px', 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: 'var(--bg)dd', backdropFilter: 'blur(20px)', 
+                position: 'sticky', top: 0, zIndex: 100 
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <button onClick={() => navigate('/dashboard')}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                        <ArrowLeft size={16} /> Dashboard
+                    </button>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                        <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                    </div>
+                </div>
+                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
+                    {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
-                <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    PitchPulse
-                </span>
             </nav>
 
-            <div style={{ maxWidth: '600px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '1.5rem' }}>Settings</h1>
+            <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2rem 1rem 5rem' : '4rem 1.5rem' }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '2.5rem' }}>Settings</h1>
 
-                {/* Account */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Account</p>
-                    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--text-sec)' }}>
-                        {user?.email}
-                    </div>
-
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <p style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-                            Password & Security
-                        </p>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                            Password and security settings are managed through your account portal.
-                        </p>
-                        <UserButton afterSignOutUrl="/" showName={true} />
-                    </div>
-                </div>
-
-                {/* Preferences */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Preferences</p>
-
-                    <label style={labelStyle}>Default Brief Length</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                        {['short', 'medium', 'long'].map(l => (
-                            <button key={l} onClick={() => setLength(l)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${length === l ? 'var(--accent-border)' : 'var(--border)'}`, background: length === l ? 'var(--accent-soft)' : 'var(--bg)', color: length === l ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-
-                    <label style={labelStyle}>Default View</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                        {['tabs', 'cards'].map(v => (
-                            <button key={v} onClick={() => setView(v)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${view === v ? 'var(--accent-border)' : 'var(--border)'}`, background: view === v ? 'var(--accent-soft)' : 'var(--bg)', color: view === v ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
-                                {v}
-                            </button>
-                        ))}
-                    </div>
-
-                    <button onClick={handleSavePrefs}
-                        style={{ background: prefsSaved ? 'var(--success)' : 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '0.6rem 1.25rem', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', transition: 'background 0.2s', boxShadow: 'var(--glow)' }}>
-                        {prefsSaved ? 'Saved ✓' : 'Save Preferences'}
-                    </button>
-                </div>
-
-                {/* Subscription */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Subscription</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div>
-                            <p style={{ fontWeight: '700', margin: 0 }}>Free Plan</p>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>3 briefs per hour</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    
+                    {/* Account Section */}
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Account Intelligence</p>
+                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-sec)', fontFamily: 'monospace' }}>
+                            {user?.email}
                         </div>
-                        <span style={{ background: 'var(--surface-2)', color: 'var(--text-sec)', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-sm)' }}>CURRENT</span>
+                        <div style={{ padding: '1.5rem', background: 'var(--bg-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                            <p style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem' }}>Identity Management</p>
+                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>Your profile and security credentials are securely managed via Clerk.</p>
+                            <UserButton afterSignOutUrl="/" showName={true} />
+                        </div>
                     </div>
 
-                    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                            <div>
-                                <p style={{ fontWeight: '700', margin: 0, color: 'var(--accent)' }}>Pro Plan</p>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>Unlimited briefs · Priority generation</p>
+                    {/* Preferences Section */}
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>System Preferences</p>
+
+                        <div style={{ marginBottom: '2rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-sec)', marginBottom: '0.75rem' }}>Default Brief Depth</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                {['short', 'medium', 'long'].map(l => (
+                                    <button key={l} onClick={() => setLength(l)}
+                                        style={{ 
+                                            flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', 
+                                            border: `1px solid ${length === l ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                            background: length === l ? 'var(--accent-soft)' : 'transparent', 
+                                            color: length === l ? 'var(--accent)' : 'var(--text-muted)', 
+                                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700',
+                                            textTransform: 'capitalize', transition: 'all 0.2s'
+                                        }}>
+                                        {l}
+                                    </button>
+                                ))}
                             </div>
-                            <span style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: '0.65rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-border)', whiteSpace: 'nowrap' }}>COMING SOON</span>
                         </div>
-                        <button disabled
-                            style={{ background: 'var(--border)', border: 'none', borderRadius: 'var(--radius)', padding: '0.6rem 1.25rem', color: 'var(--text-muted)', cursor: 'not-allowed', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                            Upgrade — Coming Soon
-                        </button>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: 0 }}>
-                            Pro tier coming soon. <a href="mailto:hello@pitchpulse.app" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Join the waitlist →</a>
-                        </p>
-                    </div>
-                </div>
 
-                {/* Danger Zone */}
-                <div style={{ ...sectionStyle, border: '1px solid var(--danger)' }}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Danger Zone</p>
-                    <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1rem' }}>Permanently delete your account and all briefs. This cannot be undone.</p>
-                    <button onClick={() => setDeleteModal(true)}
-                        style={{ background: 'none', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', padding: '0.6rem 1.25rem', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                        Delete Account
-                    </button>
+                        <div style={{ marginBottom: '2rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-sec)', marginBottom: '0.75rem' }}>Default Interface View</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                {['tabs', 'cards'].map(v => (
+                                    <button key={v} onClick={() => setView(v)}
+                                        style={{ 
+                                            flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', 
+                                            border: `1px solid ${view === v ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                            background: view === v ? 'var(--accent-soft)' : 'transparent', 
+                                            color: view === v ? 'var(--accent)' : 'var(--text-muted)', 
+                                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700',
+                                            textTransform: 'capitalize', transition: 'all 0.2s'
+                                        }}>
+                                        {v}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button onClick={handleSavePrefs}
+                            style={{ 
+                                width: '100%',
+                                background: prefsSaved ? 'var(--success)' : 'var(--accent)', 
+                                border: 'none', borderRadius: 'var(--radius)', 
+                                padding: '1rem', color: '#000', fontWeight: '800', 
+                                cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s'
+                            }}>
+                            {prefsSaved ? 'Changes Saved ✓' : 'Update Preferences'}
+                        </button>
+                    </div>
+
+                    {/* Subscription Section */}
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Subscription & Usage</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-2)', borderRadius: 'var(--radius)' }}>
+                            <div>
+                                <p style={{ fontWeight: '800', fontSize: '1rem', color: '#fff' }}>PitchPulse Free</p>
+                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginTop: '0.25rem' }}>3 intelligence briefs / hour</p>
+                            </div>
+                            <span style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: '0.65rem', fontWeight: '800', padding: '0.25rem 0.75rem', borderRadius: '99px', border: '1px solid var(--border-accent)' }}>ACTIVE</span>
+                        </div>
+
+                        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.5rem', opacity: 0.6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                <div>
+                                    <p style={{ fontWeight: '800', color: 'var(--accent)' }}>Pro Access</p>
+                                    <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Unlimited briefs · Multi-company comparison</p>
+                                </div>
+                                <span style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Coming Soon</span>
+                            </div>
+                            <button disabled style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', color: 'var(--text-muted)', cursor: 'not-allowed', fontSize: '0.85rem', fontWeight: '700' }}>
+                                Upgrade Tier
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Danger Zone */}
+                    <div style={{ background: 'var(--danger)08', border: '1px solid #ef444430', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Terminal Actions</p>
+                        <p style={{ color: 'var(--text-sec)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>Permanently delete your PitchPulse account and all associated intelligence data. This action is irreversible.</p>
+                        <button onClick={() => setDeleteModal(true)}
+                            style={{ background: 'none', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', padding: '0.75rem 1.5rem', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '800', transition: 'all 0.2s' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#ef444415'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                            Delete Account
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Delete modal */}
+            {/* Delete Modal */}
             {deleteModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '400px', width: '100%' }}>
-                        <h3 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>Delete your account?</h3>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>All your briefs and data will be permanently deleted. There's no going back.</p>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)f2', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
+                    <div style={{ background: 'var(--surface-2)', border: '1px solid #ef444450', borderRadius: 'var(--radius-lg)', padding: '2.5rem', maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--danger)10', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                            <Trash2 size={32} />
+                        </div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.75rem' }}>Final Confirmation</h3>
+                        <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.6' }}>Are you absolutely sure? All your saved briefs, watchlists, and account history will be purged immediately.</p>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
                             <button onClick={() => setDeleteModal(false)}
-                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
+                                style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.8rem', color: 'var(--text-sec)', cursor: 'pointer', fontWeight: '700' }}>
                                 Cancel
                             </button>
                             <button onClick={handleDeleteAccount} disabled={deleteLoading}
-                                style={{ flex: 1, background: 'var(--danger)', border: 'none', borderRadius: 'var(--radius)', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                                {deleteLoading ? 'Deleting...' : 'Yes, Delete Everything'}
+                                style={{ flex: 1, background: 'var(--danger)', border: 'none', borderRadius: 'var(--radius)', padding: '0.8rem', color: '#fff', cursor: 'pointer', fontWeight: '800' }}>
+                                {deleteLoading ? 'Processing...' : 'Delete Everything'}
                             </button>
                         </div>
                     </div>

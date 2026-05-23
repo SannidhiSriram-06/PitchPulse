@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useClerkToken } from '../hooks/useClerkToken'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, Share2, RefreshCw, ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, Sun, Moon, Download } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, Share2, RefreshCw, ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, Sun, Moon, Download, Calendar } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import api from '../lib/api'
@@ -26,12 +26,6 @@ const SECTION_LABELS = {
     recent_developments: 'Recent News',
     strengths_weaknesses: 'Strengths & Weaknesses',
     recommendation: 'Recommendation',
-}
-
-const CONFIDENCE_COLORS = {
-    high: '#22C55E',
-    medium: 'var(--accent)',
-    low: '#EF4444',
 }
 
 export default function BriefDisplayPage() {
@@ -208,177 +202,142 @@ export default function BriefDisplayPage() {
 
     if (loading) return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sec)' }}>
-            Loading brief...
+            <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         </div>
     )
 
     if (error) return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button onClick={() => navigate('/dashboard')}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                        <ArrowLeft size={16} /> Back to Dashboard
-                    </button>
-                </div>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '64px', background: 'var(--bg)dd', backdropFilter: 'blur(20px)' }}>
+                <button onClick={() => navigate('/dashboard')}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                    <ArrowLeft size={16} /> Dashboard
+                </button>
             </nav>
-            <div style={{ padding: '2rem 1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 56px)' }}>
-                <p style={{ color: '#EF4444', fontSize: '1rem' }}>{error}</p>
+            <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+                <p style={{ color: 'var(--danger)', fontSize: '1rem', fontWeight: '600' }}>{error}</p>
             </div>
         </div>
     )
 
     return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-            {isShareView && !user && (
-                <div className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium" style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
-                    <span>Generated with PitchPulse</span>
-                    <a href="/register" className="underline font-bold">Get your free account →</a>
-                </div>
-            )}
-
+            
             {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button onClick={() => navigate('/dashboard')}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                        <ArrowLeft size={16} /> {!isMobile && 'Dashboard'}
-                    </button>
-                    {!isMobile && <span style={{ color: 'var(--border)', marginLeft: '0.5rem', marginRight: '0.5rem' }}>|</span>}
-                    <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        PitchPulse
-                    </span>
-                </div>
+            <nav style={{ 
+                borderBottom: '1px solid var(--border)', 
+                padding: '0 1rem', 
+                position: 'sticky', top: 0, 
+                background: 'var(--bg)dd', 
+                backdropFilter: 'blur(20px)', 
+                WebkitBackdropFilter: 'blur(20px)', 
+                zIndex: 100 
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <button onClick={() => navigate('/dashboard')}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                            <ArrowLeft size={16} /> {!isMobile && 'Dashboard'}
+                        </button>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                            <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                        </div>
+                    </div>
 
-                {/* Action bar */}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <button onClick={() => setShowCustomize(true)} title="Customize"
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sec)', padding: '0.25rem' }}>
-                        ⚙
-                    </button>
-                    <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                    </button>
-                {!isShareView && (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button onClick={handleSave} disabled={saving}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: saved ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-                            {!isMobile && (saved ? 'Saved' : 'Save')}
-                        </button>
-                        <button onClick={exportToPDF} disabled={exportingPDF}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: exportingPDF ? 'var(--accent)' : 'var(--text-sec)', cursor: exportingPDF ? 'wait' : 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Download size={14} />
-                            {!isMobile && (exportingPDF ? 'Exporting...' : 'Export PDF')}
-                        </button>
-                        <button onClick={() => setShowSchedule(!showSchedule)}
-                            style={{ background: showSchedule ? 'var(--accent-soft)' : 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showSchedule ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            📅 {!isMobile && 'Schedule'}
-                        </button>
-                        {diffData?.has_diff && (
-                            <button onClick={() => setShowDiff(!showDiff)}
-                                style={{ background: showDiff ? 'var(--accent-soft)' : 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: showDiff ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                🔄 {!isMobile && "What's New"}
-                            </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {!isShareView && (
+                            <>
+                                <button onClick={handleSave} disabled={saving}
+                                    style={{ 
+                                        background: saved ? 'var(--accent-soft)' : 'var(--surface)', 
+                                        border: `1px solid ${saved ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                        borderRadius: 'var(--radius-sm)', 
+                                        padding: '0.5rem 0.75rem', 
+                                        color: saved ? 'var(--accent)' : 'var(--text-sec)', 
+                                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                                        display: 'flex', alignItems: 'center', gap: '0.4rem' 
+                                    }}>
+                                    {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                                    {!isMobile && (saved ? 'Saved' : 'Save')}
+                                </button>
+                                <button onClick={exportToPDF} disabled={exportingPDF}
+                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Download size={14} />
+                                    {!isMobile && 'Export'}
+                                </button>
+                                <button onClick={() => setShowSchedule(!showSchedule)}
+                                    style={{ background: 'var(--surface)', border: `1px solid ${showSchedule ? 'var(--border-accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: showSchedule ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Calendar size={14} />
+                                    {!isMobile && 'Schedule'}
+                                </button>
+                                <button onClick={handleShare}
+                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: copied ? 'var(--success)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Share2 size={14} />
+                                    {!isMobile && (copied ? 'Copied' : 'Share')}
+                                </button>
+                            </>
                         )}
-                        <button onClick={handleShare}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: copied ? 'var(--success)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Share2 size={14} />
-                            {!isMobile && (copied ? 'Copied!' : 'Share')}
-                        </button>
-                        <button onClick={() => navigate(`/brief/new?company=${encodeURIComponent(briefMeta?.company_name || '')}`)}
-                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: isMobile ? '0.4rem' : '0.4rem 0.75rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <RefreshCw size={14} /> {!isMobile && 'Regenerate'}
+                        <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
+                            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                         </button>
                     </div>
-                )}
                 </div>
             </nav>
 
             {/* Schedule Panel */}
             {showSchedule && (
-                <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', marginBottom: '0.25rem' }}>Meeting time</label>
-                            <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} min={new Date().toISOString().slice(0, 16)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
+                <div style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', padding: '2rem', animation: 'slideUp 0.3s ease' }}>
+                    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '1.5rem' }}>Schedule Brief Delivery</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Meeting Time</label>
+                                <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', outline: 'none' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Recipient Email</label>
+                                <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', outline: 'none' }} />
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', marginBottom: '0.25rem' }}>Send to</label>
-                            <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.5rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minWidth: '200px' }} />
-                        </div>
+                        <button onClick={handleSchedule} style={{ width: '100%', background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', borderRadius: 'var(--radius)', fontWeight: '800', cursor: 'pointer', boxShadow: 'var(--accent-glow)' }}>
+                            Schedule Delivery
+                        </button>
+                        {scheduleStatus && <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: scheduleStatus.includes('✓') ? 'var(--success)' : 'var(--danger)', textAlign: 'center', fontWeight: '600' }}>{scheduleStatus}</p>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button onClick={handleSchedule} style={{ background: 'var(--gradient)', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--glow)' }}>Send Brief to My Email</button>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)' }}>We'll send this brief to your email right away</span>
-                    </div>
-                    {scheduleStatus && <div style={{ fontSize: '0.875rem', color: scheduleStatus.includes('✓') ? 'var(--success)' : 'var(--danger)' }}>{scheduleStatus}</div>}
                 </div>
             )}
 
-            <div id="brief-content" style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem', background: 'var(--bg)' }}>
-
+            <main id="brief-content" style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '2rem 1rem 5rem' : '4rem 1.5rem' }}>
+                
                 {/* Header */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <h1 style={{ fontSize: 'clamp(1.5rem, 6vw, 2rem)', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>
-                            {briefMeta?.company_name}
-                        </h1>
-                        {saved && <BookmarkCheck size={20} style={{ color: 'var(--accent)' }} />}
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>
-                        Generated {formatDate(briefMeta?.created_at)} · {briefMeta?.length} brief · {sections.length} sections
-                    </p>
-                </div>
-
-                {/* Poor quality banner */}
-                {poorQualityCount >= 3 && (
-                    <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius)', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                        <span style={{ color: 'var(--accent)' }}>Brief quality was poor? Let us know →</span>
-                        <span style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>
-                            Give feedback
-                        </span>
-                    </div>
-                )}
-
-                {/* Diff Panel */}
-                {showDiff && diffData?.has_diff && (
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem', position: 'relative' }}>
-                        <button onClick={() => setShowDiff(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text)' }}>Changes since {formatDate(diffData.compared_dates[1])}</h3>
-                        
-                        {['summary', 'news'].map(section => {
-                            const added = diffData.changes[section]?.added || []
-                            const removed = diffData.changes[section]?.removed || []
-                            if (added.length === 0 && removed.length === 0) return null
-                            
-                            return (
-                                <div key={section} style={{ marginBottom: '1rem' }}>
-                                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-sec)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{SECTION_LABELS[section] || section}</h4>
-                                    {added.map((text, i) => (
-                                        <div key={`add-${i}`} style={{ display: 'flex', gap: '0.5rem', color: '#22C55E', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                                            <span>+</span><span>{text}.</span>
-                                        </div>
-                                    ))}
-                                    {removed.map((text, i) => (
-                                        <div key={`rem-${i}`} style={{ display: 'flex', gap: '0.5rem', color: '#EF4444', opacity: 0.8, fontSize: '0.875rem', marginBottom: '0.25rem', textDecoration: 'line-through' }}>
-                                            <span>−</span><span>{text}.</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )
-                        })}
-                        {['summary', 'news'].every(section => (diffData.changes[section]?.added || []).length === 0 && (diffData.changes[section]?.removed || []).length === 0) && (
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-sec)' }}>No significant changes detected.</p>
+                <div style={{ marginBottom: '4rem' }}>
+                    <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: '800', letterSpacing: '-1.5px', marginBottom: '1rem', color: '#fff' }}>
+                        {briefMeta?.company_name}
+                    </h1>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                            {formatDate(briefMeta?.created_at)} · {briefMeta?.length} · {sections.length} sections
+                        </div>
+                        {diffData?.has_diff && (
+                            <button onClick={() => setShowDiff(!showDiff)} style={{ background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', color: 'var(--accent)', padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer' }}>
+                                ⚡ RECENT UPDATES
+                            </button>
                         )}
                     </div>
-                )}
+                </div>
 
-                {/* View toggle */}
-                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.5rem' }}>
+                {/* View Toggle */}
+                <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '3px', width: 'fit-content', marginBottom: '2rem' }}>
                     {['tabs', 'cards'].map((v) => (
                         <button key={v} onClick={() => setView(v)}
-                            style={{ padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${view === v ? 'var(--accent-border)' : 'var(--border)'}`, background: view === v ? 'var(--accent-soft)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize' }}>
+                            style={{ 
+                                padding: '0.4rem 1rem', borderRadius: 'calc(var(--radius) - 2px)', border: 'none',
+                                background: view === v ? 'var(--surface-2)' : 'transparent', 
+                                color: view === v ? 'var(--accent)' : 'var(--text-sec)', 
+                                border: view === v ? '1px solid var(--border-accent)' : 'none',
+                                cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700',
+                                textTransform: 'capitalize'
+                            }}>
                             {v}
                         </button>
                     ))}
@@ -386,129 +345,149 @@ export default function BriefDisplayPage() {
 
                 {/* TABS VIEW */}
                 {view === 'tabs' && (
-                    <div>
-                        <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+                    <div style={{ animation: 'slideUp 0.3s ease' }}>
+                        <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', marginBottom: '2.5rem', overflowX: 'auto' }}>
                             {sections.map((s) => (
                                 <button key={s} onClick={() => setActiveTab(s)}
-                                    style={{ padding: '0.6rem 1rem', border: 'none', borderBottom: `2px solid ${activeTab === s ? 'var(--accent)' : 'transparent'}`, background: 'transparent', color: activeTab === s ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: activeTab === s ? '700' : '400', whiteSpace: 'nowrap' }}>
+                                    style={{ 
+                                        padding: '0.75rem 0.5rem', border: 'none', 
+                                        borderBottom: `2px solid ${activeTab === s ? 'var(--accent)' : 'transparent'}`, 
+                                        background: 'transparent', 
+                                        color: activeTab === s ? 'var(--text)' : 'var(--text-sec)', 
+                                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap',
+                                        transition: 'all 0.2s ease',
+                                        transform: activeTab === s ? 'scale(1.02)' : 'scale(1)'
+                                    }}>
                                     {SECTION_LABELS[s] || s}
                                 </button>
                             ))}
                         </div>
                         {brief[activeTab] && (
-                            <SectionCard section={activeTab} data={brief[activeTab]} feedback={feedback} onFeedback={handleFeedback} isShareView={isShareView} />
+                            <SectionCard section={activeTab} data={brief[activeTab]} feedback={feedback} onFeedback={handleFeedback} isShareView={isShareView} index={0} />
                         )}
                     </div>
                 )}
 
                 {/* CARDS VIEW */}
                 {view === 'cards' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1rem' }}>
-                        {sections.map((s) => (
-                            <SectionCard key={s} section={s} data={brief[s]} feedback={feedback} onFeedback={handleFeedback} isShareView={isShareView} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', animation: 'slideUp 0.3s ease' }}>
+                        {sections.map((s, index) => (
+                            <SectionCard key={s} section={s} data={brief[s]} feedback={feedback} onFeedback={handleFeedback} isShareView={isShareView} index={index} />
                         ))}
                     </div>
                 )}
 
                 {/* Sources */}
                 {sources.length > 0 && (
-                    <div style={{ marginTop: '2rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                        <button onClick={() => setSourcesOpen(!sourcesOpen)}
-                            style={{ width: '100%', background: 'var(--surface)', border: 'none', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: 'var(--text-sec)', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                            <span>{sources.length} sources used</span>
-                            {sourcesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                        {sourcesOpen && (
-                            <div style={{ padding: '0.75rem 1rem', background: 'var(--bg)' }}>
-                                {sources.map((url, i) => (
-                                    <div key={i} style={{ marginBottom: '0.4rem' }}>
-                                        <a href={url} target="_blank" rel="noreferrer"
-                                            style={{ color: '#3B82F6', fontSize: '0.75rem', textDecoration: 'none', wordBreak: 'break-all' }}>
-                                            {url}
-                                        </a>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                    <div style={{ marginTop: '4rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.5rem' }}>
+                        <h3 style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>
+                            Data Sources
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {sources.map((url, i) => (
+                                <a key={i} href={url} target="_blank" rel="noreferrer"
+                                    style={{ color: 'var(--accent)', fontSize: '0.8rem', textDecoration: 'none', wordBreak: 'break-all', opacity: 0.8 }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = 0.8}>
+                                    {url}
+                                </a>
+                            ))}
+                        </div>
                     </div>
                 )}
-            </div>
+            </main>
             {showCustomize && <CustomizePanel onClose={() => setShowCustomize(false)} />}
         </div>
     )
 }
 
-function SectionCard({ section, data, feedback, onFeedback, isShareView }) {
+function SectionCard({ section, data, feedback, onFeedback, isShareView, index = 0 }) {
     if (!data) return null
     const content = typeof data === 'string' ? data : data.content
     const confidence = typeof data === 'object' ? data.confidence : null
 
+    const confidenceStyle = {
+        high: { bg: '#22c55e15', color: '#22c55e', border: '1px solid #22c55e30' },
+        medium: { bg: '#f59e0b15', color: '#f59e0b', border: '1px solid #f59e0b30' },
+        low: { bg: '#ef444415', color: '#ef4444', border: '1px solid #ef444430' }
+    }
+    const conf = confidenceStyle[confidence] || confidenceStyle.medium
+
     return (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700' }}>
+        <div style={{ 
+            background: 'var(--surface)', border: '1px solid var(--border)', 
+            borderRadius: 'var(--radius-lg)', padding: '2rem', position: 'relative',
+            opacity: 0,
+            animation: 'slideUp 0.4s ease forwards',
+            animationDelay: `${index * 0.08}s`
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '800' }}>
                     {SECTION_LABELS[section] || section}
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {confidence && (
-                        <span style={{ fontSize: '0.65rem', color: CONFIDENCE_COLORS[confidence] || 'var(--text-muted)', background: 'var(--accent-soft)', border: `1px solid ${CONFIDENCE_COLORS[confidence] === 'var(--accent)' ? 'var(--accent-border)' : CONFIDENCE_COLORS[confidence] || 'var(--border)'}`, borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {confidence}
+                        <span style={{ 
+                            fontSize: '0.6rem', fontWeight: '800', textTransform: 'uppercase', 
+                            padding: '0.2rem 0.5rem', borderRadius: '4px',
+                            background: conf.bg, color: conf.color, border: conf.border
+                        }}>
+                            {confidence} Confidence
                         </span>
                     )}
                     {!isShareView && (
-                        <>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button onClick={() => onFeedback(section, feedback[section] === 'up' ? null : 'up')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? 'var(--success)' : 'var(--text-muted)', padding: '0.2rem' }}>
-                                <ThumbsUp size={13} />
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? 'var(--accent)' : 'var(--text-muted)', transition: 'color 0.2s' }}>
+                                <ThumbsUp size={14} />
                             </button>
                             <button onClick={() => onFeedback(section, feedback[section] === 'down' ? null : 'down')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? 'var(--danger)' : 'var(--text-muted)', padding: '0.2rem' }}>
-                                <ThumbsDown size={13} />
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? 'var(--danger)' : 'var(--text-muted)', transition: 'color 0.2s' }}>
+                                <ThumbsDown size={14} />
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
-            {(() => {
-                if (!content) return null
-                if (typeof content === 'string') {
-                    return <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: 0 }}>{content}</p>
-                }
-                if (Array.isArray(content)) {
-                    return content.map((item, idx) => {
-                        if (!item) return null
-                        if (typeof item === 'string') {
-                            return (
-                                <p key={idx} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: idx === content.length - 1 ? 0 : '0 0 0.5rem 0' }}>
-                                    {item}
-                                </p>
-                            )
-                        }
-                        if (typeof item === 'object') {
-                            const entries = Object.entries(item)
-                            return (
-                                <div key={idx} style={{ marginBottom: idx === content.length - 1 ? 0 : '1rem' }}>
-                                    {entries.map(([k, v], i) => (
-                                        <p key={i} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: '0 0 0.25rem 0' }}>
-                                            <strong>{k}:</strong> {String(v)}
-                                        </p>
-                                    ))}
-                                </div>
-                            )
-                        }
-                        return null
-                    })
-                }
-                if (typeof content === 'object') {
-                    const entries = Object.entries(content)
-                    return entries.map(([k, v], idx) => (
-                        <p key={idx} style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.7', margin: idx === entries.length - 1 ? 0 : '0 0 0.5rem 0' }}>
-                            <strong>{k}:</strong> {String(v)}
-                        </p>
-                    ))
-                }
-                return null
-            })()}
+
+            <div style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.8' }}>
+                {(() => {
+                    if (!content) return null
+                    if (typeof content === 'string') {
+                        return <p style={{ margin: 0 }}>{content}</p>
+                    }
+                    if (Array.isArray(content)) {
+                        return content.map((item, idx) => {
+                            if (!item) return null
+                            if (typeof item === 'string') {
+                                return <p key={idx} style={{ marginBottom: '1rem' }}>{item}</p>
+                            }
+                            if (typeof item === 'object') {
+                                return (
+                                    <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
+                                        {Object.entries(item).map(([k, v], i) => (
+                                            <div key={i} style={{ marginBottom: '0.5rem' }}>
+                                                <span style={{ fontWeight: '800', color: 'var(--text)', marginRight: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase' }}>{k}:</span>
+                                                <span>{String(v)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            }
+                            return null
+                        })
+                    }
+                    if (typeof content === 'object') {
+                        return Object.entries(content).map(([k, v], idx) => (
+                            <div key={idx} style={{ marginBottom: '0.75rem' }}>
+                                <span style={{ fontWeight: '800', color: 'var(--text)', marginRight: '0.5rem' }}>{k}:</span>
+                                <span>{String(v)}</span>
+                            </div>
+                        ))
+                    }
+                    return null
+                })()}
+            </div>
         </div>
     )
 }

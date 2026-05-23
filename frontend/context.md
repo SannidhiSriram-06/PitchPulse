@@ -347,7 +347,7 @@ Removes a watchlist entry.
 - Border: `#222222`
 - Primary text: `#FFFFFF`
 - Secondary text: `#888888`
-- Accent: `#C8FF00` (acid yellow) — used for CTAs, highlights, active states in dark mode
+- Accent: `#a3e635` (lime green) — used for CTAs, highlights, active states in dark mode
 
 **Light mode:**
 - Background: `#F5F5F0`

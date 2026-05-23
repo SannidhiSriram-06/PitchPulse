@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useClerkToken } from '../hooks/useClerkToken'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, Sun, Moon, Zap } from 'lucide-react'
 import useBriefStore from '../store/briefStore'
 import api from '../lib/api'
 import usePrefsStore from '../store/prefsStore'
@@ -122,179 +122,245 @@ export default function BriefGeneratorPage() {
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem', background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
+            <nav style={{ 
+                borderBottom: '1px solid var(--border)', 
+                padding: '0 1rem', 
+                display: 'flex', alignItems: 'center', 
+                height: '64px', gap: '1rem', 
+                background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', 
+                position: 'sticky', top: 0, zIndex: 100 
+            }}>
                 <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
+                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
                     <ArrowLeft size={16} /> Dashboard
                 </button>
                 <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    PitchPulse
-                </span>
+                <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                    <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                </div>
             </nav>
 
             {/* Loading overlay */}
             {(generating || isGenerating) && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)dd', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
-                    <div style={{ width: '48px', height: '48px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    <p style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: '600' }}>{statusMessage}</p>
-                    <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem' }}>This takes 20–60 seconds. Don't close the tab.</p>
-                    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)f2', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
+                    <div style={{ 
+                        width: '48px', height: '48px', 
+                        border: '3px solid var(--border)', 
+                        borderTop: '3px solid var(--accent)', 
+                        borderRadius: '50%', 
+                        animation: 'spin 0.7s linear infinite' 
+                    }} />
+                    <div style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--accent)', fontSize: '1.1rem', fontWeight: '800', marginBottom: '0.5rem' }}>{statusMessage}</p>
+                        <p style={{ color: 'var(--text-sec)', fontSize: '0.85rem' }}>Our AI agents are working. This takes 20–60 seconds.</p>
+                    </div>
                 </div>
             )}
 
             {/* Content */}
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2rem 1rem' : '3rem 1.5rem' }}>
+            <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2.5rem 1rem 5rem' : '4rem 1.5rem' }}>
 
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>Generate a Brief</h1>
-                <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Enter a company name and we'll do the rest.</p>
+                <div style={{ marginBottom: '3rem' }}>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '300', letterSpacing: '-1px', marginBottom: '0.5rem' }}>
+                        Generate a <span style={{ color: 'var(--accent)', fontWeight: '800' }}>Brief</span>
+                    </h1>
+                    <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem' }}>Tailor your intelligence for the upcoming meeting.</p>
+                </div>
 
                 {/* Mode Toggle */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2.5rem' }}>
+                <div style={{ 
+                    display: 'flex', 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: 'var(--radius)', 
+                    padding: '4px', 
+                    marginBottom: '2.5rem' 
+                }}>
                     <button onClick={() => setComparisonMode(false)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${!comparisonMode ? 'var(--accent-border)' : 'var(--border)'}`, background: !comparisonMode ? 'var(--accent-soft)' : 'var(--surface)', color: !comparisonMode ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: !comparisonMode ? '700' : '400' }}>
+                        style={{ 
+                            flex: 1, padding: '0.75rem', 
+                            borderRadius: 'calc(var(--radius) - 2px)', 
+                            border: !comparisonMode ? '1px solid var(--border-accent)' : '1px solid transparent',
+                            background: !comparisonMode ? 'var(--accent-soft)' : 'transparent', 
+                            color: !comparisonMode ? 'var(--accent)' : 'var(--text-sec)', 
+                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: !comparisonMode ? '700' : '500',
+                            transition: 'all 0.2s'
+                        }}>
                         Single Company
                     </button>
                     <button onClick={() => setComparisonMode(true)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${comparisonMode ? 'var(--accent-border)' : 'var(--border)'}`, background: comparisonMode ? 'var(--accent-soft)' : 'var(--surface)', color: comparisonMode ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: comparisonMode ? '700' : '400' }}>
+                        style={{ 
+                            flex: 1, padding: '0.75rem', 
+                            borderRadius: 'calc(var(--radius) - 2px)', 
+                            border: comparisonMode ? '1px solid var(--border-accent)' : '1px solid transparent',
+                            background: comparisonMode ? 'var(--accent-soft)' : 'transparent', 
+                            color: comparisonMode ? 'var(--accent)' : 'var(--text-sec)', 
+                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: comparisonMode ? '700' : '500',
+                            transition: 'all 0.2s'
+                        }}>
                         Compare Two
                     </button>
                 </div>
 
-                {/* Meeting Type */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>MEETING TYPE (OPTIONAL)</label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                {Object.entries(TEMPLATES).map(([key, value]) => {
-                                    const active = selectedTemplate === key
-                                    return (
-                                        <button key={key} onClick={() => {
-                                            if (active) {
-                                                setSelectedTemplate(null)
-                                                setCustomPrompt('')
-                                            } else {
-                                                setSelectedTemplate(key)
-                                                setCustomPrompt(value)
-                                            }
-                                        }}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '99px', border: `1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`, background: active ? 'var(--accent-soft)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
-                                            {key}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-
-                {!comparisonMode && (
-                    <>
-                        {/* Company input */}
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company Name</label>
-                            <input
-                                value={company} onChange={(e) => setCompany(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                placeholder="e.g. Razorpay, Infosys, Zomato..."
-                                autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
-                            />
-                        </div>
-                    </>
-                )}
-
-                {comparisonMode && (
-                    <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                    
+                    {/* Company Inputs */}
+                    <div style={{ display: 'flex', gap: '1rem', flexDirection: (isMobile || comparisonMode) ? 'column' : 'row' }}>
                         <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 1</label>
+                            <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '0.75rem' }}>
+                                {comparisonMode ? 'Company 1' : 'Company Name'}
+                            </label>
                             <input
                                 value={company} onChange={(e) => setCompany(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                                 placeholder="e.g. Infosys"
                                 autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
+                                style={{ 
+                                    width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', 
+                                    borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', 
+                                    fontSize: '1rem', fontFamily: 'monospace', outline: 'none',
+                                    transition: 'all 0.2s'
+                                }}
+                                onFocus={(e) => { e.target.style.borderColor = 'var(--border-accent)'; e.target.style.boxShadow = 'var(--accent-glow)'; }}
+                                onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 2</label>
-                            <input
-                                value={company2} onChange={(e) => setCompany2(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                placeholder="e.g. TCS"
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
-                            />
+                        {comparisonMode && (
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '0.75rem' }}>Company 2</label>
+                                <input
+                                    value={company2} onChange={(e) => setCompany2(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                                    placeholder="e.g. TCS"
+                                    style={{ 
+                                        width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', 
+                                        borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', 
+                                        fontSize: '1rem', fontFamily: 'monospace', outline: 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onFocus={(e) => { e.target.style.borderColor = 'var(--border-accent)'; e.target.style.boxShadow = 'var(--accent-glow)'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Meeting Type */}
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>Meeting Context</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {Object.entries(TEMPLATES).map(([key, value]) => {
+                                const active = selectedTemplate === key
+                                return (
+                                    <button key={key} onClick={() => {
+                                        if (active) {
+                                            setSelectedTemplate(null)
+                                            setCustomPrompt('')
+                                        } else {
+                                            setSelectedTemplate(key)
+                                            setCustomPrompt(value)
+                                        }
+                                    }}
+                                        style={{ 
+                                            padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', 
+                                            border: `1px solid ${active ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                            background: active ? 'var(--accent-soft)' : 'transparent', 
+                                            color: active ? 'var(--accent)' : 'var(--text-sec)', 
+                                            cursor: 'pointer', fontSize: '0.75rem', fontWeight: active ? '700' : '500',
+                                            transition: 'all 0.2s'
+                                        }}>
+                                        {key}
+                                    </button>
+                                )
+                            })}
                         </div>
                     </div>
-                )}
 
-                {/* Length */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Brief Length</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {['short', 'medium', 'long'].map((l) => (
-                            <button key={l} onClick={() => setLength(l)}
-                                style={{ flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${length === l ? 'var(--accent-border)' : 'var(--border)'}`, background: length === l ? 'var(--accent-soft)' : 'var(--surface)', color: length === l ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
-                                {l}
-                            </button>
-                        ))}
+                    {/* Brief Length */}
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>Output Depth</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {['short', 'medium', 'long'].map((l) => (
+                                <button key={l} onClick={() => setLength(l)}
+                                    style={{ 
+                                        flex: 1, padding: '0.75rem', borderRadius: 'var(--radius-sm)', 
+                                        border: `1px solid ${length === l ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                        background: length === l ? 'var(--accent-soft)' : 'transparent', 
+                                        color: length === l ? 'var(--accent)' : 'var(--text-sec)', 
+                                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: length === l ? '700' : '500',
+                                        textTransform: 'capitalize'
+                                    }}>
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                        {length === 'short' ? '~15–20 seconds' : length === 'medium' ? '~30–45 seconds' : '~60–90 seconds'}
-                    </p>
-                </div>
 
-                {!comparisonMode && (
-                    <>
-                        {/* Sections */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Sections to include</label>
+                    {!comparisonMode && (
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>Included Sections</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 {ALL_SECTIONS.map((s) => {
                                     const active = sections.includes(s.key)
                                     return (
                                         <button key={s.key} onClick={() => toggleSection(s.key)}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '99px', border: `1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`, background: active ? 'var(--accent-soft)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
+                                            style={{ 
+                                                padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', 
+                                                border: `1px solid ${active ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                                background: active ? 'var(--accent-soft)' : 'transparent', 
+                                                color: active ? 'var(--accent)' : 'var(--text-sec)', 
+                                                cursor: 'pointer', fontSize: '0.75rem', fontWeight: active ? '700' : '500',
+                                                transition: 'all 0.2s'
+                                            }}>
                                             {s.label}
                                         </button>
                                     )
                                 })}
                             </div>
                         </div>
-                    </>
-                )}
+                    )}
 
-                {/* Custom Prompt */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Custom Focus (optional)</label>
-                            <textarea
-                                value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-                                placeholder="e.g. Focus on their AI strategy and recent layoffs, or Ask about their cloud migration plans"
-                                maxLength={500}
-                                style={{ width: '100%', minHeight: '80px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', fontSize: '1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px', resize: 'vertical' }}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem' }}>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', margin: 0 }}>
-                                    Add any specific angle or question you want the brief to address.
-                                </p>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', margin: 0 }}>
-                                    {customPrompt.length}/500
-                                </p>
-                            </div>
-                        </div>
-
-                {error && (
-                    <div style={{ background: 'var(--danger)15', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', padding: '0.75rem', marginBottom: '1.5rem', color: 'var(--danger)', fontSize: '0.875rem' }}>
-                        {error}
+                    {/* Custom Focus */}
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>Custom Focus</label>
+                        <textarea
+                            value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
+                            placeholder="e.g. Focus on their recent AI expansion plans..."
+                            maxLength={500}
+                            style={{ 
+                                width: '100%', minHeight: '100px', background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--text)', 
+                                fontSize: '0.9rem', outline: 'none', resize: 'vertical',
+                                transition: 'all 0.2s'
+                            }}
+                            onFocus={(e) => { e.target.style.borderColor = 'var(--border-accent)'; e.target.style.boxShadow = 'var(--accent-glow)'; }}
+                            onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                        />
                     </div>
-                )}
 
-                <button onClick={handleGenerate} disabled={generating || isGenerating}
-                    style={{ width: '100%', background: 'var(--gradient)', border: 'none', borderRadius: 'var(--radius)', padding: '1rem', color: '#fff', fontSize: '1rem', fontWeight: '800', fontFamily: 'Space Grotesk, sans-serif', cursor: (generating || isGenerating) ? 'not-allowed' : 'pointer', letterSpacing: '-0.3px', boxShadow: 'var(--glow)' }}>
-                    ⚡ {comparisonMode ? 'Compare Companies' : 'Generate Brief'}
-                </button>
+                    {error && (
+                        <div style={{ background: 'var(--danger)10', border: '1px solid var(--danger)30', borderRadius: 'var(--radius)', padding: '1rem', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: '600' }}>
+                            {error}
+                        </div>
+                    )}
 
+                    <button onClick={handleGenerate} disabled={generating || isGenerating}
+                        style={{ 
+                            width: '100%', background: 'var(--accent)', border: 'none', 
+                            borderRadius: 'var(--radius-lg)', padding: '1.25rem', 
+                            color: '#000', fontSize: '1rem', fontWeight: '800', 
+                            cursor: (generating || isGenerating) ? 'not-allowed' : 'pointer', 
+                            boxShadow: 'var(--accent-glow)',
+                            transition: 'all 0.2s ease',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem'
+                        }}
+                        onMouseEnter={(e) => { if (!generating && !isGenerating) e.currentTarget.style.filter = 'brightness(1.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                        <Zap size={18} fill="currentColor" />
+                        {comparisonMode ? 'Compare Companies' : 'Generate Brief'}
+                    </button>
+
+                </div>
             </div>
             {rateLimitData && (
                 <RateLimitModal

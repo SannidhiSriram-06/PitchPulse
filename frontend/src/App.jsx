@@ -36,15 +36,15 @@ export default function App() {
         <Route path="/sign-in/*" element={
           <div style={{
             minHeight: '100vh',
-            background: '#0A0A0A',
+            background: 'var(--bg)',
             display: 'flex',
           }}>
             {/* Left panel - branding */}
             {!isMobile && (
               <div style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, #0A0A0A 0%, #111111 40%, #1a1a0a 100%)',
-                borderRight: '1px solid #222222',
+                background: 'linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 40%, var(--surface) 100%)',
+                borderRight: '1px solid var(--border)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -59,7 +59,7 @@ export default function App() {
                   left: '-100px',
                   width: '400px',
                   height: '400px',
-                  background: 'radial-gradient(circle, #C8FF0015 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, var(--accent-soft) 0%, transparent 70%)',
                   pointerEvents: 'none',
                 }} />
                 <div style={{
@@ -68,13 +68,14 @@ export default function App() {
                   right: '-50px',
                   width: '300px',
                   height: '300px',
-                  background: 'radial-gradient(circle, #C8FF0008 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
                   pointerEvents: 'none',
+                  opacity: 0.5
                 }} />
 
                 {/* Logo */}
-                <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px', color: '#FFFFFF' }}>
-                  Pitch<span style={{ color: '#C8FF00' }}>Pulse</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                  <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
                 </div>
 
                 {/* Main pitch */}
@@ -83,14 +84,14 @@ export default function App() {
                     fontSize: 'clamp(2rem, 4vw, 3rem)',
                     fontWeight: '800',
                     letterSpacing: '-2px',
-                    lineHeight: '1.1',
-                    color: '#FFFFFF',
+                    lineHeight: '1',
+                    color: '#fff',
                     marginBottom: '1.5rem',
                   }}>
                     Know your prospect.<br />
-                    <span style={{ color: '#C8FF00' }}>Before you walk in.</span>
+                    <span style={{ color: 'var(--accent)' }}>Before you walk in.</span>
                   </h1>
-                  <p style={{ color: '#888888', fontSize: '1rem', lineHeight: '1.7', maxWidth: '420px', marginBottom: '3rem' }}>
+                  <p style={{ color: 'var(--text-sec)', fontSize: '1rem', lineHeight: '1.6', maxWidth: '420px', marginBottom: '4rem' }}>
                     AI-powered sales briefs in under 60 seconds. News, financials, talking points, and risks — everything you need before any meeting.
                   </p>
 
@@ -102,31 +103,31 @@ export default function App() {
                       { icon: '📊', text: 'Live financials and recent news' },
                       { icon: '🔒', text: 'Free to use — no credit card needed' },
                     ].map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <div style={{
-                          width: '36px',
-                          height: '36px',
+                          width: '40px',
+                          height: '40px',
                           borderRadius: '8px',
-                          background: '#C8FF0015',
-                          border: '1px solid #C8FF0030',
+                          background: 'var(--accent-soft)',
+                          border: '1px solid var(--border-accent)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1rem',
+                          fontSize: '1.1rem',
                           flexShrink: 0,
                         }}>
                           {f.icon}
                         </div>
-                        <span style={{ color: '#CCCCCC', fontSize: '0.9rem' }}>{f.text}</span>
+                        <span style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Bottom quote */}
-                <div style={{ borderTop: '1px solid #222222', paddingTop: '1.5rem' }}>
-                  <p style={{ color: '#555555', fontSize: '0.8rem' }}>
-                    Trusted by sales reps who prep.
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Built for sales reps who prep.
                   </p>
                 </div>
               </div>
@@ -134,13 +135,14 @@ export default function App() {
 
             {/* Right panel - Clerk component */}
             <div style={{
-              width: isMobile ? '100%' : '480px',
+              width: isMobile ? '100%' : '520px',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2rem',
-              background: '#0A0A0A',
+              background: 'var(--bg)',
+              borderLeft: isMobile ? 'none' : '1px solid var(--border)'
             }}>
               <SignIn routing="path" path="/sign-in" forceRedirectUrl="/onboarding-check" />
             </div>
@@ -149,15 +151,15 @@ export default function App() {
         <Route path="/sign-up/*" element={
           <div style={{
             minHeight: '100vh',
-            background: '#0A0A0A',
+            background: 'var(--bg)',
             display: 'flex',
           }}>
             {/* Left panel - branding */}
             {!isMobile && (
               <div style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, #0A0A0A 0%, #111111 40%, #1a1a0a 100%)',
-                borderRight: '1px solid #222222',
+                background: 'linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 40%, var(--surface) 100%)',
+                borderRight: '1px solid var(--border)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -172,7 +174,7 @@ export default function App() {
                   left: '-100px',
                   width: '400px',
                   height: '400px',
-                  background: 'radial-gradient(circle, #C8FF0015 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, var(--accent-soft) 0%, transparent 70%)',
                   pointerEvents: 'none',
                 }} />
                 <div style={{
@@ -181,13 +183,14 @@ export default function App() {
                   right: '-50px',
                   width: '300px',
                   height: '300px',
-                  background: 'radial-gradient(circle, #C8FF0008 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
                   pointerEvents: 'none',
+                  opacity: 0.5
                 }} />
 
                 {/* Logo */}
-                <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px', color: '#FFFFFF' }}>
-                  Pitch<span style={{ color: '#C8FF00' }}>Pulse</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                  <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
                 </div>
 
                 {/* Main pitch */}
@@ -196,14 +199,14 @@ export default function App() {
                     fontSize: 'clamp(2rem, 4vw, 3rem)',
                     fontWeight: '800',
                     letterSpacing: '-2px',
-                    lineHeight: '1.1',
-                    color: '#FFFFFF',
+                    lineHeight: '1',
+                    color: '#fff',
                     marginBottom: '1.5rem',
                   }}>
                     Know your prospect.<br />
-                    <span style={{ color: '#C8FF00' }}>Before you walk in.</span>
+                    <span style={{ color: 'var(--accent)' }}>Before you walk in.</span>
                   </h1>
-                  <p style={{ color: '#888888', fontSize: '1rem', lineHeight: '1.7', maxWidth: '420px', marginBottom: '3rem' }}>
+                  <p style={{ color: 'var(--text-sec)', fontSize: '1rem', lineHeight: '1.6', maxWidth: '420px', marginBottom: '4rem' }}>
                     AI-powered sales briefs in under 60 seconds. News, financials, talking points, and risks — everything you need before any meeting.
                   </p>
 
@@ -215,31 +218,31 @@ export default function App() {
                       { icon: '📊', text: 'Live financials and recent news' },
                       { icon: '🔒', text: 'Free to use — no credit card needed' },
                     ].map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <div style={{
-                          width: '36px',
-                          height: '36px',
+                          width: '40px',
+                          height: '40px',
                           borderRadius: '8px',
-                          background: '#C8FF0015',
-                          border: '1px solid #C8FF0030',
+                          background: 'var(--accent-soft)',
+                          border: '1px solid var(--border-accent)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1rem',
+                          fontSize: '1.1rem',
                           flexShrink: 0,
                         }}>
                           {f.icon}
                         </div>
-                        <span style={{ color: '#CCCCCC', fontSize: '0.9rem' }}>{f.text}</span>
+                        <span style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Bottom quote */}
-                <div style={{ borderTop: '1px solid #222222', paddingTop: '1.5rem' }}>
-                  <p style={{ color: '#555555', fontSize: '0.8rem' }}>
-                    Trusted by sales reps who prep.
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Built for sales reps who prep.
                   </p>
                 </div>
               </div>
@@ -247,13 +250,14 @@ export default function App() {
 
             {/* Right panel - Clerk component */}
             <div style={{
-              width: isMobile ? '100%' : '480px',
+              width: isMobile ? '100%' : '520px',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2rem',
-              background: '#0A0A0A',
+              background: 'var(--bg)',
+              borderLeft: isMobile ? 'none' : '1px solid var(--border)'
             }}>
               <SignUp routing="path" path="/sign-up" forceRedirectUrl="/onboarding-check" />
             </div>

@@ -14,7 +14,7 @@ export default defineConfig({
         name: 'PitchPulse',
         short_name: 'PitchPulse',
         description: 'AI pre-meeting sales briefs in 60 seconds',
-        theme_color: '#C8FF00',
+        theme_color: '#a3e635',
         background_color: '#0A0A0A',
         display: 'standalone',
         orientation: 'portrait',
