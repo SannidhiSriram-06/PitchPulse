@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useClerkToken } from '../hooks/useClerkToken'
 import { startTour } from '../hooks/useTour'
 import { useNavigate } from 'react-router-dom'
-import { Plus, LogOut, Settings, Clock, Bookmark, Zap, X, Sun, Moon, ChevronLeft, ChevronRight, Menu, Search } from 'lucide-react'
+import { Plus, LogOut, Settings, Clock, Bookmark, Zap, X, Sun, Moon, ChevronLeft, ChevronRight, Menu } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import api from '../lib/api'
 import useIsMobile from '../hooks/useIsMobile'
@@ -11,12 +11,6 @@ import CustomizePanel from '../components/CustomizePanel'
 import { BriefCardSkeleton, WatchlistItemSkeleton } from '../components/Skeletons'
 import usePrefsStore from '../store/prefsStore'
 import { useClerk, useUser } from '@clerk/clerk-react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-const getAvatarColor = (name) => {
-  const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f97316','#84cc16']
-  return colors[name.charCodeAt(0) % colors.length]
-}
 
 function CountUpNumber({ targetValue }) {
   const [count, setCount] = useState(0)
@@ -178,17 +172,15 @@ export default function DashboardPage() {
 
             {/* Top bar */}
             <nav style={{ 
-                borderBottom: '1px solid rgba(255,255,255,0.06)', 
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04)',
+                borderBottom: '1px solid var(--border)', 
                 padding: '0 1rem', 
                 position: 'sticky', top: 0, 
-                background: 'rgba(13,13,18,0.7)', 
-                backdropFilter: 'blur(24px)', 
-                WebkitBackdropFilter: 'blur(24px)', 
-                zIndex: 100,
-                height: '60px'
+                background: 'var(--bg)cc', 
+                backdropFilter: 'blur(20px)', 
+                WebkitBackdropFilter: 'blur(20px)', 
+                zIndex: 100 
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', gap: '1rem' }}>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         {isMobile && (
@@ -196,55 +188,52 @@ export default function DashboardPage() {
                                 <Menu size={20} />
                             </button>
                         )}
-                        <div style={{ fontSize: '1.1rem', fontWeight: '900', letterSpacing: '-0.5px', flexShrink: 0 }}>
-                            <span style={{ color: '#ffffff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                        <div style={{ fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.5px', flexShrink: 0 }}>
+                            <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
                         </div>
                     </div>
 
                     <div style={{ flex: 1, maxWidth: '480px', position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }}>
-                            <Search size={16} />
-                        </div>
                         <input id="search-bar"
                             value={search} onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search briefs..."
                             style={{ 
                                 width: '100%', 
-                                background: 'rgba(255,255,255,0.05)', 
-                                border: '1px solid rgba(255,255,255,0.08)', 
-                                borderRadius: '10px', 
-                                padding: '0.6rem 1rem 0.6rem 2.5rem', 
-                                color: '#fff', 
+                                background: 'var(--surface)', 
+                                border: '1px solid var(--border)', 
+                                borderRadius: 'var(--radius)', 
+                                padding: '0.6rem 1rem', 
+                                color: 'var(--text)', 
                                 fontSize: '0.85rem', 
                                 outline: 'none',
                                 transition: 'all 0.15s'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = 'rgba(163,230,53,0.4)'}
-                            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+                            onFocus={(e) => e.target.style.borderColor = 'var(--border-accent)'}
+                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                         />
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                         {!isMobile && (
-                            <motion.button id="generate-brief-btn" onClick={() => navigate('/brief/new')}
-                                whileHover={{ scale: 1.02, boxShadow: '0 0 16px rgba(163,230,53,0.25)' }}
-                                whileTap={{ scale: 0.97 }}
+                            <button onClick={() => navigate('/brief/new')}
                                 style={{ 
                                     background: 'var(--accent)', 
                                     border: 'none', 
-                                    borderRadius: '10px', 
-                                    padding: '0.55rem 1.1rem', 
+                                    borderRadius: 'var(--radius)', 
+                                    padding: '0.6rem 1.25rem', 
                                     color: '#000', 
-                                    fontWeight: '800', 
+                                    fontWeight: '700', 
                                     cursor: 'pointer', 
                                     fontSize: '0.8rem', 
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     gap: '0.5rem',
-                                    boxShadow: '0 0 0 1px rgba(163,230,53,0.2)'
-                                }}>
+                                    transition: 'filter 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}>
                                 <Plus size={16} /> New Brief
-                            </motion.button>
+                            </button>
                         )}
                         
                         <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
@@ -256,78 +245,67 @@ export default function DashboardPage() {
                                 style={{ 
                                     width: '36px', height: '36px', 
                                     borderRadius: '50%', 
-                                    background: 'rgba(163,230,53,0.15)', 
-                                    border: '1px solid rgba(163,230,53,0.25)',
+                                    background: 'var(--surface-2)', 
+                                    border: '1px solid var(--border)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
                                     cursor: 'pointer', color: 'var(--accent)', 
                                     fontWeight: '700', fontSize: '0.85rem' 
                                 }}>
                                 {user?.email?.[0]?.toUpperCase() || 'U'}
                             </div>
-                            <AnimatePresence>
-                                {userMenuOpen && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                                        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                                        style={{ 
-                                            position: 'absolute', right: 0, top: '48px', 
-                                            background: 'rgba(20,20,28,0.95)', 
-                                            border: '1px solid rgba(255,255,255,0.08)', 
-                                            borderRadius: '14px', 
-                                            minWidth: '200px', 
-                                            zIndex: 200,
-                                            overflow: 'hidden',
-                                            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
-                                            backdropFilter: 'blur(20px)',
-                                            WebkitBackdropFilter: 'blur(20px)'
-                                        }}>
-                                        <div style={{ padding: '0.8rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                                            {user?.email}
-                                        </div>
-                                        <div onClick={() => { navigate('/history'); setUserMenuOpen(false) }}
-                                            style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'rgba(255,255,255,0.7)' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <Clock size={16} /> History
-                                        </div>
-                                        <div onClick={() => { navigate('/settings'); setUserMenuOpen(false) }}
-                                            style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'rgba(255,255,255,0.7)' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <Settings size={16} /> Settings
-                                        </div>
-                                        <div onClick={handleLogout}
-                                            style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <LogOut size={16} /> Log out
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            {userMenuOpen && (
+                                <div style={{ 
+                                    position: 'absolute', right: 0, top: '48px', 
+                                    background: 'var(--surface)', 
+                                    border: '1px solid var(--border)', 
+                                    borderRadius: 'var(--radius-lg)', 
+                                    minWidth: '200px', 
+                                    zIndex: 200,
+                                    overflow: 'hidden',
+                                    boxShadow: 'var(--shadow)'
+                                }}>
+                                    <div style={{ padding: '0.8rem 1rem', borderBottom: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        {user?.email}
+                                    </div>
+                                    <div onClick={() => { navigate('/history'); setUserMenuOpen(false) }}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-sec)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <Clock size={16} /> History
+                                    </div>
+                                    <div onClick={() => { navigate('/settings'); setUserMenuOpen(false) }}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-sec)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <Settings size={16} /> Settings
+                                    </div>
+                                    <div onClick={handleLogout}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid var(--border)' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <LogOut size={16} /> Log out
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </nav>
 
-            <div style={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
+            <div style={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
 
                 {/* Sidebar */}
                 {!isMobile && (
                     <aside id="watchlist-sidebar" style={{ 
                         width: sidebarOpen ? '260px' : '64px', 
-                        borderRight: '1px solid rgba(255,255,255,0.05)', 
+                        borderRight: '1px solid var(--border)', 
                         padding: '1.5rem 0.75rem', 
                         overflowY: 'auto', flexShrink: 0, 
                         transition: 'all 0.2s ease', 
-                        background: 'rgba(19,19,26,0.6)',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)'
+                        background: 'var(--surface)' 
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', marginBottom: '2rem' }}>
-                            {sidebarOpen && <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: '700' }}>Watchlist</p>}
+                            {sidebarOpen && <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700' }}>Watchlist</p>}
                             <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.4rem' }}>
                                 {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
                             </button>
@@ -342,16 +320,16 @@ export default function DashboardPage() {
                                         <div style={{ 
                                             display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', 
                                             padding: '0.6rem 0.75rem', 
-                                            borderRadius: '10px', 
+                                            borderRadius: 'var(--radius-sm)', 
                                             transition: 'background 0.2s', 
                                             cursor: 'pointer',
-                                            background: openNote === item.company_name ? 'rgba(255,255,255,0.05)' : 'transparent'
+                                            background: openNote === item.company_name ? 'var(--surface-2)' : 'transparent'
                                         }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
                                         onMouseLeave={(e) => { if (openNote !== item.company_name) e.currentTarget.style.background = 'transparent' }}>
                                             {sidebarOpen ? (
                                                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                                         {item.company_name}
                                                         {alerts[item.company_name]?.has_recent_news && (
                                                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} />
@@ -363,18 +341,11 @@ export default function DashboardPage() {
                                                 </div>
                                             ) : (
                                                 <div style={{ position: 'relative' }}>
-                                                    <div style={{ 
-                                                        width: '32px', height: '32px', 
-                                                        borderRadius: '8px', 
-                                                        background: getAvatarColor(item.company_name) + '25', 
-                                                        border: '1px solid ' + getAvatarColor(item.company_name) + '40',
-                                                        color: getAvatarColor(item.company_name),
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' 
-                                                    }}>
+                                                    <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' }}>
                                                         {item.company_name[0]}
                                                     </div>
                                                     {alerts[item.company_name]?.has_recent_news && (
-                                                        <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', border: '2px solid rgba(19,19,26,1)' }} />
+                                                        <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', border: '2px solid var(--surface)' }} />
                                                     )}
                                                 </div>
                                             )}
@@ -416,7 +387,7 @@ export default function DashboardPage() {
                                                     }}
                                                     placeholder="Private notes..."
                                                     rows={3}
-                                                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '0.75rem', padding: '0.5rem', outline: 'none', resize: 'none' }}
+                                                    style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: '0.75rem', padding: '0.5rem', outline: 'none', resize: 'none' }}
                                                 />
                                             </div>
                                         )}
@@ -431,7 +402,7 @@ export default function DashboardPage() {
                                     <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && addToWatchlist()}
                                         placeholder="Add company..."
-                                        style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.5rem', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
+                                        style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text)', fontSize: '0.75rem', outline: 'none' }}
                                     />
                                     <button onClick={addToWatchlist}
                                         style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: '#000', fontWeight: '700', cursor: 'pointer' }}>
@@ -454,89 +425,62 @@ export default function DashboardPage() {
                         
                         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: '3rem', gap: '1.5rem' }}>
                             <div>
-                                <div style={{ width: '32px', height: '2px', background: 'var(--accent)', borderRadius: '99px', marginBottom: '1rem' }} />
-                                <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '0.5rem', color: '#fff' }}>Dashboard</h1>
-                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>Welcome back. Here's your intelligence overview.</p>
+                                <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '0.5rem' }}>Dashboard</h1>
+                                <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem' }}>Welcome back. Here's your intelligence overview.</p>
                             </div>
-                            <motion.button id="generate-brief-btn" onClick={() => navigate('/brief/new')}
-                                whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(163,230,53,0.2)' }}
-                                whileTap={{ scale: 0.97 }}
+                            <button id="generate-brief-btn" onClick={() => navigate('/brief/new')}
                                 style={{ 
                                     width: isMobile ? '100%' : 'auto', 
                                     background: 'var(--accent)', border: 'none', 
-                                    borderRadius: '12px', padding: '0.8rem 1.5rem', 
+                                    borderRadius: 'var(--radius)', padding: '0.8rem 1.75rem', 
                                     color: '#000', fontWeight: '800', 
-                                    cursor: 'pointer', fontSize: '0.875rem',
-                                    boxShadow: '0 0 0 1px rgba(163,230,53,0.2)',
+                                    cursor: 'pointer', fontSize: '0.9rem',
+                                    boxShadow: '0 0 12px #a3e63510',
                                     transition: 'all 0.2s ease'
-                                }}>
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                                 ⚡ Generate Brief
-                            </motion.button>
+                            </button>
                         </div>
 
                         {/* Stats Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                style={{ 
-                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', 
-                                    borderLeft: '3px solid rgba(163,230,53,0.3)',
-                                    borderRadius: '16px', padding: '1.75rem',
-                                    backdropFilter: 'blur(10px)',
-                                    WebkitBackdropFilter: 'blur(10px)'
-                                }}>
-                                <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>Total Briefs</div>
-                                <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: '800', letterSpacing: '-2px' }}><CountUpNumber targetValue={briefs.length} /></div>
-                            </motion.div>
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                style={{ 
-                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', 
-                                    borderLeft: '3px solid rgba(163,230,53,0.3)',
-                                    borderRadius: '16px', padding: '1.75rem',
-                                    backdropFilter: 'blur(10px)',
-                                    WebkitBackdropFilter: 'blur(10px)'
-                                }}>
-                                <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>Companies Tracked</div>
-                                <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: '800', letterSpacing: '-2px' }}><CountUpNumber targetValue={watchlist.length} /></div>
-                            </motion.div>
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                style={{ 
-                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', 
-                                    borderLeft: '3px solid rgba(163,230,53,0.3)',
-                                    borderRadius: '16px', padding: '1.75rem',
-                                    backdropFilter: 'blur(10px)',
-                                    WebkitBackdropFilter: 'blur(10px)'
-                                }}>
-                                <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>Last Brief</div>
-                                <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: '800', marginTop: '0.2rem', letterSpacing: '-2px' }}>
-                                    {briefs.length > 0 ? (
-                                        <span style={{ fontSize: '1.5rem' }}>{formatLastBriefed(briefs[0].created_at) || 'Today'}</span>
-                                    ) : (
-                                        <span style={{ fontSize: '1.5rem' }}>None yet</span>
-                                    )}
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Total Briefs</div>
+                                <div style={{ color: 'var(--text)', fontSize: '2.5rem', fontWeight: '800' }}><CountUpNumber targetValue={briefs.length} /></div>
+                            </div>
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Companies Tracked</div>
+                                <div style={{ color: 'var(--text)', fontSize: '2.5rem', fontWeight: '800' }}><CountUpNumber targetValue={watchlist.length} /></div>
+                            </div>
+                            <div style={{ 
+                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                borderTop: '2px solid var(--border-accent)',
+                                borderRadius: 'var(--radius-lg)', padding: '1.5rem' 
+                            }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>Last Brief</div>
+                                <div style={{ color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800', marginTop: '1rem' }}>
+                                    {briefs.length > 0 ? formatLastBriefed(briefs[0].created_at) || 'Today' : 'None yet'}
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                            <span style={{ fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>Recent Activity</span>
-                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
-                        </div>
-                        
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '1.5rem', color: '#fff' }}>Recent Activity</h2>
                         <div id="briefs-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
                             {loading ? (
                                 Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
                             ) : filteredBriefs.length === 0 ? (
-                                <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '18px', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                                <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8rem 2rem', textAlign: 'center', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
                                         <Zap size={28} color="var(--accent)" />
                                     </div>
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.5rem' }}>No briefs yet</h3>
@@ -554,81 +498,51 @@ export default function DashboardPage() {
                                     const sections = (Array.isArray(brief.sections_requested) ? brief.sections_requested : (brief.sections_requested || '').split(',')).filter(Boolean).map(s => s.trim())
                                     
                                     return (
-                                        <motion.div key={brief.id} onClick={() => navigate(`/brief/${brief.id}`)}
-                                            initial={{ opacity: 0, y: 24 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                            whileHover={{ y: -3, boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(163,230,53,0.15)' }}
+                                        <div key={brief.id} onClick={() => navigate(`/brief/${brief.id}`)}
+                                            className="card-hover"
                                             style={{ 
-                                                background: 'rgba(19,19,26,0.8)', border: '1px solid rgba(255,255,255,0.07)', 
-                                                borderRadius: '18px', padding: '1.5rem', 
+                                                background: 'var(--surface)', border: '1px solid var(--border)', 
+                                                borderRadius: 'var(--radius-lg)', padding: '1.5rem', 
                                                 cursor: 'pointer', display: 'flex', flexDirection: 'column', 
                                                 minHeight: '240px',
-                                                backdropFilter: 'blur(10px)',
-                                                WebkitBackdropFilter: 'blur(10px)',
-                                                transition: 'border-color 0.2s'
+                                                opacity: 0,
+                                                animation: 'slideUp 0.3s ease forwards',
+                                                animationDelay: `${index * 0.05}s`
                                             }}>
                                             
+
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    <div style={{ 
-                                                        width: '40px', height: '40px', borderRadius: '12px',
-                                                        background: getAvatarColor(brief.company_name) + '20',
-                                                        border: '1px solid ' + getAvatarColor(brief.company_name) + '35',
-                                                        color: getAvatarColor(brief.company_name),
-                                                        fontWeight: '800', fontSize: '1rem',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        flexShrink: 0
-                                                    }}>
-                                                        {brief.company_name[0].toUpperCase()}
-                                                    </div>
-                                                    <h3 style={{ fontWeight: '700', fontSize: '0.95rem', letterSpacing: '-0.3px', color: '#fff' }}>{brief.company_name}</h3>
-                                                </div>
+                                                <h3 style={{ fontWeight: '700', fontSize: '1rem', letterSpacing: '-0.5px' }}>{brief.company_name}</h3>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     {brief.saved && <Bookmark size={14} style={{ color: 'var(--accent)' }} fill="var(--accent)" />}
-                                                    <button onClick={(e) => deleteBrief(e, brief.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', padding: '0.2rem' }}>
+                                                    <button onClick={(e) => deleteBrief(e, brief.id)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem' }}>
                                                         <X size={16} />
                                                     </button>
                                                 </div>
                                             </div>
                                             
-                                            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem', lineHeight: '1.65', marginBottom: '1.5rem', flex: 1 }}>
+                                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', lineHeight: '1.6', marginBottom: '1.5rem', flex: 1 }}>
                                                 {snippet}
                                             </p>
                                             
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.5rem' }}>
                                                 {sections.slice(0, 4).map(sec => (
-                                                    <span key={sec} style={{ 
-                                                        fontSize: '0.58rem', fontWeight: '600', 
-                                                        color: 'rgba(255,255,255,0.4)', 
-                                                        background: 'rgba(255,255,255,0.05)', 
-                                                        border: '1px solid rgba(255,255,255,0.08)', 
-                                                        borderRadius: '6px', padding: '0.2rem 0.5rem', 
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.05em'
-                                                    }}>
+                                                    <span key={sec} style={{ fontSize: '0.6rem', fontWeight: '600', color: 'var(--text-sec)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '99px', padding: '0.15rem 0.5rem', textTransform: 'uppercase' }}>
                                                         {sec}
                                                     </span>
                                                 ))}
-                                                {sections.length > 4 && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)' }}>+{sections.length - 4}</span>}
+                                                {sections.length > 4 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>+{sections.length - 4}</span>}
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                                     {formatDate(brief.created_at).split(',')[0]}
                                                 </div>
-                                                <span style={{ 
-                                                    fontSize: '0.6rem', fontWeight: '700', 
-                                                    color: 'rgba(163,230,53,0.8)', 
-                                                    background: 'rgba(163,230,53,0.08)', 
-                                                    border: '1px solid rgba(163,230,53,0.2)', 
-                                                    borderRadius: '6px', padding: '0.2rem 0.5rem', 
-                                                    textTransform: 'uppercase' 
-                                                }}>
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-sec)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.5rem', fontWeight: '600', textTransform: 'uppercase' }}>
                                                     {brief.length}
                                                 </span>
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     )
                                 })
                             )}
@@ -640,9 +554,8 @@ export default function DashboardPage() {
             {isMobile && (
               <nav style={{ 
                   position: 'fixed', bottom: 0, left: 0, right: 0, 
-                  background: 'rgba(13,13,18,0.85)', backdropFilter: 'blur(20px)', 
-                  WebkitBackdropFilter: 'blur(20px)',
-                  borderTop: '1px solid rgba(255,255,255,0.06)', 
+                  background: 'var(--surface)dd', backdropFilter: 'blur(20px)', 
+                  borderTop: '1px solid var(--border)', 
                   display: 'flex', justifyContent: 'space-around', 
                   padding: '0.75rem 0', zIndex: 100 
               }}>
@@ -650,13 +563,13 @@ export default function DashboardPage() {
                   <Clock size={20} /> Home
                   <span style={{ position: 'absolute', top: 0, width: '16px', height: '2px', background: 'var(--accent)', borderRadius: '0 0 2px 2px' }} />
                 </button>
-                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/brief/new')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <Zap size={20} /> New
                 </button>
-                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/history')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <Clock size={20} /> History
                 </button>
-                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem' }}>
+                <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
                   <Settings size={20} /> Settings
                 </button>
               </nav>
@@ -666,20 +579,18 @@ export default function DashboardPage() {
 
             {/* Mobile Watchlist Drawer Backdrop */}
             {isMobile && mobileDrawerOpen && (
-                <div onClick={() => setMobileDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 499, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
+                <div onClick={() => setMobileDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: '#000000aa', zIndex: 499, backdropFilter: 'blur(4px)' }} />
             )}
             
             {/* Mobile Watchlist Drawer */}
             {isMobile && (
                 <div style={{ 
                     position: 'fixed', left: 0, top: 0, bottom: 0, 
-                    width: '280px', background: 'rgba(19,19,26,0.95)', 
-                    borderRight: '1px solid rgba(255,255,255,0.06)', 
+                    width: '280px', background: 'var(--surface)', 
+                    borderRight: '1px solid var(--border)', 
                     zIndex: 500, transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 
                     transform: mobileDrawerOpen ? 'translateX(0)' : 'translateX(-100%)', 
-                    padding: '1.5rem', overflowY: 'auto',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
+                    padding: '1.5rem', overflowY: 'auto' 
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <span style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)' }}>Watchlist</span>
@@ -709,7 +620,7 @@ export default function DashboardPage() {
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '0.5rem' }}>
                         <input value={newCompany} onChange={(e) => setNewCompany(e.target.value)}
                             placeholder="Add company..."
-                            style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                            style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.6rem', color: 'var(--text)', fontSize: '0.8rem', outline: 'none' }}
                         />
                         <button onClick={addToWatchlist} style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.8rem', color: '#000' }}>
                             <Plus size={18} />

@@ -10,12 +10,6 @@ import useAuthStore from '../store/authStore'
 import useIsMobile from '../hooks/useIsMobile'
 import useThemeStore from '../store/themeStore'
 import CustomizePanel from '../components/CustomizePanel'
-import { motion, AnimatePresence } from 'framer-motion'
-
-const getAvatarColor = (name) => {
-  const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f97316','#84cc16']
-  return colors[(name || '').charCodeAt(0) % colors.length]
-}
 
 const SECTION_LABELS = {
     summary: 'Summary',
@@ -208,27 +202,15 @@ export default function BriefDisplayPage() {
 
     if (loading) return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sec)' }}>
-            <div style={{ 
-                width: '36px', height: '36px', 
-                border: '2px solid rgba(255,255,255,0.06)', 
-                borderTop: '2px solid var(--accent)', 
-                borderRadius: '50%', 
-                animation: 'spin 0.7s linear infinite' 
-            }} />
+            <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         </div>
     )
 
     if (error) return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-            <nav style={{ 
-                borderBottom: '1px solid rgba(255,255,255,0.06)', 
-                padding: '0 1rem', 
-                display: 'flex', alignItems: 'center', 
-                height: '60px', 
-                background: 'rgba(13,13,18,0.7)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' 
-            }}>
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '64px', background: 'var(--bg)dd', backdropFilter: 'blur(20px)' }}>
                 <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
                     <ArrowLeft size={16} /> Dashboard
                 </button>
             </nav>
@@ -243,19 +225,18 @@ export default function BriefDisplayPage() {
             
             {/* Nav */}
             <nav style={{ 
-                borderBottom: '1px solid rgba(255,255,255,0.06)', 
+                borderBottom: '1px solid var(--border)', 
                 padding: '0 1rem', 
                 position: 'sticky', top: 0, 
-                background: 'rgba(13,13,18,0.7)', 
-                backdropFilter: 'blur(24px)', 
-                WebkitBackdropFilter: 'blur(24px)', 
-                zIndex: 100,
-                height: '60px'
+                background: 'var(--bg)dd', 
+                backdropFilter: 'blur(20px)', 
+                WebkitBackdropFilter: 'blur(20px)', 
+                zIndex: 100 
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <button onClick={() => navigate('/dashboard')}
-                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                            style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
                             <ArrowLeft size={16} /> {!isMobile && 'Dashboard'}
                         </button>
                         <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
@@ -268,36 +249,35 @@ export default function BriefDisplayPage() {
                             <>
                                 <button onClick={handleSave} disabled={saving}
                                     style={{ 
-                                        background: saved ? 'rgba(163,230,53,0.1)' : 'rgba(255,255,255,0.05)', 
-                                        border: saved ? '1px solid rgba(163,230,53,0.25)' : '1px solid rgba(255,255,255,0.08)', 
-                                        borderRadius: '8px', 
-                                        padding: '0.45rem 0.875rem', 
-                                        color: saved ? 'var(--accent)' : 'rgba(255,255,255,0.6)', 
+                                        background: saved ? 'var(--accent-soft)' : 'var(--surface)', 
+                                        border: `1px solid ${saved ? 'var(--border-accent)' : 'var(--border)'}`, 
+                                        borderRadius: 'var(--radius-sm)', 
+                                        padding: '0.5rem 0.75rem', 
+                                        color: saved ? 'var(--accent)' : 'var(--text-sec)', 
                                         cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
-                                        display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                        transition: 'all 0.15s'
+                                        display: 'flex', alignItems: 'center', gap: '0.4rem' 
                                     }}>
                                     {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                                     {!isMobile && (saved ? 'Saved' : 'Save')}
                                 </button>
                                 <button onClick={exportToPDF} disabled={exportingPDF}
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.45rem 0.875rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.15s' }}>
+                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                     <Download size={14} />
                                     {!isMobile && 'Export'}
                                 </button>
                                 <button onClick={() => setShowSchedule(!showSchedule)}
-                                    style={{ background: showSchedule ? 'rgba(163,230,53,0.08)' : 'rgba(255,255,255,0.05)', border: showSchedule ? '1px solid rgba(163,230,53,0.2)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.45rem 0.875rem', color: showSchedule ? 'var(--accent)' : 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.15s' }}>
+                                    style={{ background: 'var(--surface)', border: `1px solid ${showSchedule ? 'var(--border-accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: showSchedule ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                     <Calendar size={14} />
                                     {!isMobile && 'Schedule'}
                                 </button>
                                 <button onClick={handleShare}
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.45rem 0.875rem', color: copied ? 'var(--success)' : 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.15s' }}>
+                                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', color: copied ? 'var(--success)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                     <Share2 size={14} />
                                     {!isMobile && (copied ? 'Copied' : 'Share')}
                                 </button>
                             </>
                         )}
-                        <button onClick={toggleTheme} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.45rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
+                        <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
                             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                         </button>
                     </div>
@@ -305,88 +285,56 @@ export default function BriefDisplayPage() {
             </nav>
 
             {/* Schedule Panel */}
-            <AnimatePresence>
-                {showSchedule && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        style={{ background: 'rgba(19,19,26,0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '2rem' }}
-                    >
-                        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '1.5rem', color: '#fff' }}>Schedule Brief Delivery</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Meeting Time</label>
-                                    <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff', padding: '0.875rem 1rem', outline: 'none', colorScheme: 'dark' }} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Recipient Email</label>
-                                    <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff', padding: '0.875rem 1rem', outline: 'none', colorScheme: 'dark' }} />
-                                </div>
+            {showSchedule && (
+                <div style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', padding: '2rem', animation: 'slideUp 0.3s ease' }}>
+                    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '1.5rem' }}>Schedule Brief Delivery</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Meeting Time</label>
+                                <input type="datetime-local" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', outline: 'none' }} />
                             </div>
-                            <motion.button 
-                                onClick={handleSchedule}
-                                whileHover={{ scale: 1.01, boxShadow: '0 0 0 1px rgba(163,230,53,0.4), 0 12px 40px rgba(163,230,53,0.25)' }}
-                                whileTap={{ scale: 0.98 }}
-                                style={{ 
-                                    width: '100%', background: 'var(--accent)', color: '#000', border: 'none', 
-                                    padding: '1.1rem', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', 
-                                    boxShadow: '0 0 0 1px rgba(163,230,53,0.3), 0 8px 32px rgba(163,230,53,0.15)' 
-                                }}
-                            >
-                                Schedule Delivery
-                            </motion.button>
-                            {scheduleStatus && <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: scheduleStatus.includes('✓') ? 'var(--success)' : 'var(--danger)', textAlign: 'center', fontWeight: '600' }}>{scheduleStatus}</p>}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Recipient Email</label>
+                                <input type="email" value={meetingEmail} onChange={(e) => setMeetingEmail(e.target.value)} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', outline: 'none' }} />
+                            </div>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        <button onClick={handleSchedule} style={{ width: '100%', background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', borderRadius: 'var(--radius)', fontWeight: '800', cursor: 'pointer', boxShadow: 'var(--accent-glow)' }}>
+                            Schedule Delivery
+                        </button>
+                        {scheduleStatus && <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: scheduleStatus.includes('✓') ? 'var(--success)' : 'var(--danger)', textAlign: 'center', fontWeight: '600' }}>{scheduleStatus}</p>}
+                    </div>
+                </div>
+            )}
 
-            <main id="brief-content" style={{ maxWidth: '860px', margin: '0 auto', padding: isMobile ? '2rem 1rem 6rem' : '3.5rem 2rem' }}>
+            <main id="brief-content" style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '2rem 1rem 5rem' : '4rem 1.5rem' }}>
                 
                 {/* Header */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 24 }} 
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    style={{ marginBottom: '4rem' }}
-                >
-                    <div style={{ 
-                        width: '52px', height: '52px', borderRadius: '14px',
-                        background: getAvatarColor(briefMeta?.company_name) + '20',
-                        border: '1px solid ' + getAvatarColor(briefMeta?.company_name) + '35',
-                        color: getAvatarColor(briefMeta?.company_name),
-                        fontWeight: '900', fontSize: '1.5rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        marginBottom: '1.5rem'
-                    }}>
-                        {briefMeta?.company_name?.[0]?.toUpperCase()}
-                    </div>
-                    <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: '900', letterSpacing: '-2px', marginBottom: '0.75rem', color: '#fff' }}>
+                <div style={{ marginBottom: '4rem' }}>
+                    <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: '800', letterSpacing: '-1.5px', marginBottom: '1rem', color: '#fff' }}>
                         {briefMeta?.company_name}
                     </h1>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', fontWeight: '500' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                             {formatDate(briefMeta?.created_at)} · {briefMeta?.length} · {sections.length} sections
                         </div>
                         {diffData?.has_diff && (
-                            <button onClick={() => setShowDiff(!showDiff)} style={{ background: 'rgba(163,230,53,0.1)', border: '1px solid rgba(163,230,53,0.25)', color: 'var(--accent)', padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer' }}>
+                            <button onClick={() => setShowDiff(!showDiff)} style={{ background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', color: 'var(--accent)', padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer' }}>
                                 ⚡ RECENT UPDATES
                             </button>
                         )}
                     </div>
-                </motion.div>
+                </div>
 
                 {/* View Toggle */}
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '3px', width: 'fit-content', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '3px', width: 'fit-content', marginBottom: '2rem' }}>
                     {['tabs', 'cards'].map((v) => (
                         <button key={v} onClick={() => setView(v)}
                             style={{ 
-                                padding: '0.4rem 1rem', borderRadius: '8px', border: 'none',
-                                background: view === v ? 'rgba(163,230,53,0.1)' : 'transparent', 
-                                border: view === v ? '1px solid rgba(163,230,53,0.25)' : 'none',
-                                color: view === v ? 'var(--accent)' : 'rgba(255,255,255,0.35)', 
+                                padding: '0.4rem 1rem', borderRadius: 'calc(var(--radius) - 2px)', border: 'none',
+                                background: view === v ? 'var(--surface-2)' : 'transparent', 
+                                color: view === v ? 'var(--accent)' : 'var(--text-sec)', 
+                                border: view === v ? '1px solid var(--border-accent)' : 'none',
                                 cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700',
                                 textTransform: 'capitalize'
                             }}>
@@ -398,15 +346,17 @@ export default function BriefDisplayPage() {
                 {/* TABS VIEW */}
                 {view === 'tabs' && (
                     <div style={{ animation: 'slideUp 0.3s ease' }}>
-                        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '2.5rem', overflowX: 'auto', gap: '0' }}>
+                        <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', marginBottom: '2.5rem', overflowX: 'auto' }}>
                             {sections.map((s) => (
                                 <button key={s} onClick={() => setActiveTab(s)}
                                     style={{ 
-                                        padding: '0.75rem 1.25rem', background: 'transparent', border: 'none', 
+                                        padding: '0.75rem 0.5rem', border: 'none', 
                                         borderBottom: `2px solid ${activeTab === s ? 'var(--accent)' : 'transparent'}`, 
-                                        color: activeTab === s ? '#fff' : 'rgba(255,255,255,0.35)', 
-                                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', whiteSpace: 'nowrap',
-                                        transition: 'all 0.2s'
+                                        background: 'transparent', 
+                                        color: activeTab === s ? 'var(--text)' : 'var(--text-sec)', 
+                                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap',
+                                        transition: 'all 0.2s ease',
+                                        transform: activeTab === s ? 'scale(1.02)' : 'scale(1)'
                                     }}>
                                     {SECTION_LABELS[s] || s}
                                 </button>
@@ -429,16 +379,16 @@ export default function BriefDisplayPage() {
 
                 {/* Sources */}
                 {sources.length > 0 && (
-                    <div style={{ marginTop: '4rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '1.5rem' }}>
-                        <h3 style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: '800', marginBottom: '1rem' }}>
+                    <div style={{ marginTop: '4rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.5rem' }}>
+                        <h3 style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1rem' }}>
                             Data Sources
                         </h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {sources.map((url, i) => (
                                 <a key={i} href={url} target="_blank" rel="noreferrer"
-                                    style={{ color: 'rgba(163,230,53,0.7)', fontSize: '0.8rem', textDecoration: 'none', wordBreak: 'break-all', transition: 'color 0.15s' }}
-                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(163,230,53,0.7)'}>
+                                    style={{ color: 'var(--accent)', fontSize: '0.8rem', textDecoration: 'none', wordBreak: 'break-all', opacity: 0.8 }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = 0.8}>
                                     {url}
                                 </a>
                             ))}
@@ -457,40 +407,30 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
     const confidence = typeof data === 'object' ? data.confidence : null
 
     const confidenceStyle = {
-        high: { bg: '#22c55e15', color: '#22c55e', border: '#22c55e30' },
-        medium: { bg: '#f59e0b15', color: '#f59e0b', border: '#f59e0b30' },
-        low: { bg: '#ef444415', color: '#ef4444', border: '#ef444430' }
+        high: { bg: '#22c55e15', color: '#22c55e', border: '1px solid #22c55e30' },
+        medium: { bg: '#f59e0b15', color: '#f59e0b', border: '1px solid #f59e0b30' },
+        low: { bg: '#ef444415', color: '#ef4444', border: '1px solid #ef444430' }
     }
     const conf = confidenceStyle[confidence] || confidenceStyle.medium
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            style={{ 
-                background: 'rgba(19,19,26,0.8)', border: '1px solid rgba(255,255,255,0.07)', 
-                borderRadius: '18px', padding: '2rem', position: 'relative',
-                backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-                overflow: 'hidden'
-            }}
-        >
-            <div style={{ 
-                position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px',
-                background: `linear-gradient(to bottom, ${getAvatarColor(section)}60, transparent)`,
-                borderRadius: '99px 0 0 99px'
-            }} />
-
+        <div style={{ 
+            background: 'var(--surface)', border: '1px solid var(--border)', 
+            borderRadius: 'var(--radius-lg)', padding: '2rem', position: 'relative',
+            opacity: 0,
+            animation: 'slideUp 0.4s ease forwards',
+            animationDelay: `${index * 0.08}s`
+        }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: '800' }}>
+                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '800' }}>
                     {SECTION_LABELS[section] || section}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {confidence && (
                         <span style={{ 
-                            fontSize: '0.58rem', fontWeight: '800', textTransform: 'uppercase', 
-                            padding: '0.2rem 0.6rem', borderRadius: '6px',
-                            background: conf.bg, color: conf.color, border: `1px solid ${conf.border}`
+                            fontSize: '0.6rem', fontWeight: '800', textTransform: 'uppercase', 
+                            padding: '0.2rem 0.5rem', borderRadius: '4px',
+                            background: conf.bg, color: conf.color, border: conf.border
                         }}>
                             {confidence} Confidence
                         </span>
@@ -498,17 +438,11 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
                     {!isShareView && (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button onClick={() => onFeedback(section, feedback[section] === 'up' ? null : 'up')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? 'var(--accent)' : 'rgba(255,255,255,0.2)', transition: 'color 0.2s' }}
-                                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-                                onMouseLeave={e => { if (feedback[section] !== 'up') e.currentTarget.style.color = 'rgba(255,255,255,0.2)' }}
-                            >
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'up' ? 'var(--accent)' : 'var(--text-muted)', transition: 'color 0.2s' }}>
                                 <ThumbsUp size={14} />
                             </button>
                             <button onClick={() => onFeedback(section, feedback[section] === 'down' ? null : 'down')}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? 'var(--danger)' : 'rgba(255,255,255,0.2)', transition: 'color 0.2s' }}
-                                onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                                onMouseLeave={e => { if (feedback[section] !== 'down') e.currentTarget.style.color = 'rgba(255,255,255,0.2)' }}
-                            >
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: feedback[section] === 'down' ? 'var(--danger)' : 'var(--text-muted)', transition: 'color 0.2s' }}>
                                 <ThumbsDown size={14} />
                             </button>
                         </div>
@@ -516,7 +450,7 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
                 </div>
             </div>
 
-            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: '1.8' }}>
+            <div style={{ color: 'var(--text-sec)', fontSize: '0.9rem', lineHeight: '1.8' }}>
                 {(() => {
                     if (!content) return null
                     if (typeof content === 'string') {
@@ -530,10 +464,10 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
                             }
                             if (typeof item === 'object') {
                                 return (
-                                    <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px' }}>
+                                    <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
                                         {Object.entries(item).map(([k, v], i) => (
                                             <div key={i} style={{ marginBottom: '0.5rem' }}>
-                                                <span style={{ fontWeight: '700', color: '#fff', marginRight: '0.5rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}:</span>
+                                                <span style={{ fontWeight: '800', color: 'var(--text)', marginRight: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase' }}>{k}:</span>
                                                 <span>{String(v)}</span>
                                             </div>
                                         ))}
@@ -546,7 +480,7 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
                     if (typeof content === 'object') {
                         return Object.entries(content).map(([k, v], idx) => (
                             <div key={idx} style={{ marginBottom: '0.75rem' }}>
-                                <span style={{ fontWeight: '700', color: '#fff', marginRight: '0.5rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}:</span>
+                                <span style={{ fontWeight: '800', color: 'var(--text)', marginRight: '0.5rem' }}>{k}:</span>
                                 <span>{String(v)}</span>
                             </div>
                         ))
@@ -554,6 +488,6 @@ function SectionCard({ section, data, feedback, onFeedback, isShareView, index =
                     return null
                 })()}
             </div>
-        </motion.div>
+        </div>
     )
 }
