@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
 
 export default function PWAInstallBanner() {
   const [isVisible, setIsVisible] = useState(false);
@@ -19,8 +18,12 @@ export default function PWAInstallBanner() {
     setIsIOS(ios);
 
     const handleBeforeInstallPrompt = (e) => {
+      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
+      // Stash the event so it can be triggered later.
       deferredPrompt.current = e;
+      
+      // Show the banner after 3 seconds
       setTimeout(() => {
         setIsVisible(true);
       }, 3000);
@@ -28,6 +31,8 @@ export default function PWAInstallBanner() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    // If iOS, beforeinstallprompt doesn't fire, so we show it after 3 seconds anyway
+    // if not installed and not dismissed
     let iosTimer;
     if (ios) {
       iosTimer = setTimeout(() => {
@@ -48,6 +53,8 @@ export default function PWAInstallBanner() {
       if (outcome === 'accepted') {
         setIsVisible(false);
       }
+      // We don't nullify the deferred prompt if they dismiss it via the browser UI,
+      // but usually the browser will handle it. We'll just nullify it to be safe.
       deferredPrompt.current = null;
     }
   };
@@ -61,51 +68,52 @@ export default function PWAInstallBanner() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 z-[1000] p-4 md:p-6" 
-      style={{ animation: 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+      className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-6" 
+      style={{ animation: 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
-      <div className="max-w-4xl mx-auto border shadow-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4" 
-        style={{ 
-          background: 'var(--surface)', 
-          borderColor: 'var(--border)', 
-          borderRadius: 'var(--radius-lg)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)'
-        }}>
+      <style>
+        {`
+          @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+        `}
+      </style>
+      <div className="max-w-4xl mx-auto border rounded-2xl shadow-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 font-['Space_Grotesk']" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="w-12 h-12 flex-shrink-0 bg-[var(--accent-soft)] rounded-lg flex items-center justify-center border border-[var(--border-accent)]">
-            <img src="/favicon.svg" alt="PitchPulse" className="w-8 h-8 object-contain" />
-          </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <img src="/favicon.svg" alt="PitchPulse" className="w-10 h-10 object-contain flex-shrink-0" />
           <div className="flex flex-col">
-            <span className="font-800 text-sm leading-tight tracking-tight" style={{ color: 'var(--text)' }}>PitchPulse Native</span>
-            <span className="text-xs" style={{ color: 'var(--text-sec)' }}>Install for the best mobile experience</span>
+            <span className="font-bold text-base leading-tight" style={{ color: 'var(--text-primary)' }}>PitchPulse</span>
+            <span className="text-sm" style={{ color: 'var(--text-sec)' }}>Add to home screen for quick access</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {isIOS ? (
-            <div className="text-[0.65rem] font-800 uppercase tracking-widest px-4 py-2.5 rounded-lg flex-1 sm:flex-none text-center" 
-              style={{ color: 'var(--accent)', backgroundColor: 'var(--accent-soft)', border: '1px solid var(--border-accent)' }}>
-              Share <span className="inline-block mx-1">↑</span> Add to Home Screen
+            <div className="text-xs font-medium px-3 py-2 rounded-lg text-center flex-1 sm:flex-none whitespace-nowrap" style={{ color: 'var(--accent)', backgroundColor: 'var(--accent-15)' }}>
+              Tap Share <span className="inline-block mx-1">↑</span> Add to Home Screen
             </div>
           ) : (
             <button 
               onClick={handleInstallClick}
-              className="font-800 px-8 py-2.5 rounded-lg transition-all flex-1 sm:flex-none text-xs uppercase tracking-widest"
-              style={{ background: 'var(--accent)', color: '#000', border: 'none', boxShadow: 'var(--accent-glow)' }}
+              className="font-semibold px-6 py-2 rounded-xl transition-colors flex-1 sm:flex-none text-sm"
+              style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
             >
-              Install App
+              Install
             </button>
           )}
           
           <button 
             onClick={handleDismiss}
-            className="p-2 flex-shrink-0 transition-colors rounded-full hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--text-sec)' }}
+            className="p-2 flex-shrink-0 transition-colors rounded-full"
+            style={{ color: 'var(--text-sec)', backgroundColor: 'transparent' }}
             aria-label="Dismiss"
           >
-            <X size={18} />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
 

@@ -14,4 +14,3 @@ litellm
 flask-limiter
 flask-talisman
 resend
-svix

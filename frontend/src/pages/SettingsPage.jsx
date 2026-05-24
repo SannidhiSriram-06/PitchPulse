@@ -1,27 +1,24 @@
-import { useState, useEffect } from 'react'
-import { useClerkToken } from '../hooks/useClerkToken'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon, Trash2 } from 'lucide-react'
+import { ArrowLeft, Sun, Moon } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import usePrefsStore from '../store/prefsStore'
 import api from '../lib/api'
 import useIsMobile from '../hooks/useIsMobile'
 import useThemeStore from '../store/themeStore'
-import { useClerk, useUser, UserButton } from '@clerk/clerk-react'
 
 export default function SettingsPage() {
-    useClerkToken()
-    const { signOut } = useClerk()
     const navigate = useNavigate()
     const isMobile = useIsMobile()
-    const { user: clerkUser } = useUser()
-    const { user, logout, syncClerkUser } = useAuthStore()
+    const { user, logout } = useAuthStore()
     const { defaultLength, defaultView, setPrefs } = usePrefsStore()
     const { theme, toggleTheme } = useThemeStore()
 
-    useEffect(() => {
-        if (clerkUser) syncClerkUser(clerkUser)
-    }, [clerkUser])
+    const [currentPassword, setCurrentPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [pwMsg, setPwMsg] = useState('')
+    const [pwError, setPwError] = useState('')
+    const [pwLoading, setPwLoading] = useState(false)
 
     const [length, setLength] = useState(defaultLength || 'medium')
     const [view, setView] = useState(defaultView || 'tabs')
@@ -29,6 +26,21 @@ export default function SettingsPage() {
 
     const [deleteModal, setDeleteModal] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
+
+    const handleChangePassword = async () => {
+        setPwMsg(''); setPwError('')
+        if (!currentPassword || !newPassword) { setPwError('Both fields are required.'); return }
+        if (newPassword.length < 8) { setPwError('New password must be at least 8 characters.'); return }
+        setPwLoading(true)
+        try {
+            await api.post('/api/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+            setPwMsg('Password updated successfully.')
+            setCurrentPassword(''); setNewPassword('')
+        } catch (err) {
+            setPwError(err.response?.data?.error || 'Failed to update password.')
+        }
+        setPwLoading(false)
+    }
 
     const handleSavePrefs = async () => {
         setPrefs({ defaultLength: length, defaultView: view })
@@ -43,165 +55,174 @@ export default function SettingsPage() {
         setDeleteLoading(true)
         try {
             await api.delete('/api/auth/account')
-            signOut(() => window.location.href = '/')
+            logout()
+            navigate('/')
         } catch (e) { }
         setDeleteLoading(false)
+    }
+
+    const sectionStyle = {
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '6px',
+        padding: '1.5rem',
+        marginBottom: '1rem'
+    }
+
+    const labelStyle = {
+        fontSize: '0.7rem',
+        color: 'var(--text-sec)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.1em',
+        display: 'block',
+        marginBottom: '0.5rem'
+    }
+
+    const inputStyle = {
+        width: '100%',
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        borderRadius: '4px',
+        padding: '0.75rem',
+        color: 'var(--text)',
+        fontSize: '0.875rem',
+        fontFamily: 'Space Grotesk, sans-serif',
+        outline: 'none',
+        boxSizing: 'border-box',
+        marginBottom: '0.75rem'
     }
 
     return (
         <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
 
             {/* Nav */}
-            <nav style={{ 
-                borderBottom: '1px solid var(--border)', 
-                padding: '0 1rem', 
-                height: '64px', 
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: 'var(--bg)dd', backdropFilter: 'blur(20px)', 
-                position: 'sticky', top: 0, zIndex: 100 
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <button onClick={() => navigate('/dashboard')}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
-                        <ArrowLeft size={16} /> Dashboard
-                    </button>
-                    <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                        <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
-                    </div>
-                </div>
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', color: 'var(--text-sec)', cursor: 'pointer' }}>
-                    {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
+                <button onClick={() => navigate('/dashboard')}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
+                    <ArrowLeft size={16} /> Dashboard
                 </button>
+                <div style={{ flex: 1 }} />
+                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                </button>
+                <span style={{ color: 'var(--border)' }}>|</span>
+                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
+                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
+                </span>
             </nav>
 
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2rem 1rem 5rem' : '4rem 1.5rem' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '2.5rem' }}>Settings</h1>
+            <div style={{ maxWidth: '600px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '1.5rem' }}>Settings</h1>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    
-                    {/* Account Section */}
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Account Intelligence</p>
-                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-sec)', fontFamily: 'monospace' }}>
-                            {user?.email}
-                        </div>
-                        <div style={{ padding: '1.5rem', background: 'var(--bg-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                            <p style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem' }}>Identity Management</p>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>Your profile and security credentials are securely managed via Clerk.</p>
-                            <UserButton afterSignOutUrl="/" showName={true} />
-                        </div>
+                {/* Account */}
+                <div style={sectionStyle}>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Account</p>
+                    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--text-sec)' }}>
+                        {user?.email}
                     </div>
 
-                    {/* Preferences Section */}
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>System Preferences</p>
+                    <p style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.75rem' }}>Change Password</p>
+                    <label style={labelStyle}>Current Password</label>
+                    <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Current password" style={inputStyle} />
+                    <label style={labelStyle}>New Password</label>
+                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
+                        placeholder="Min. 8 characters" style={{ ...inputStyle, marginBottom: '1rem' }} />
 
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-sec)', marginBottom: '0.75rem' }}>Default Brief Depth</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {['short', 'medium', 'long'].map(l => (
-                                    <button key={l} onClick={() => setLength(l)}
-                                        style={{ 
-                                            flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', 
-                                            border: `1px solid ${length === l ? 'var(--border-accent)' : 'var(--border)'}`, 
-                                            background: length === l ? 'var(--accent-soft)' : 'transparent', 
-                                            color: length === l ? 'var(--accent)' : 'var(--text-muted)', 
-                                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700',
-                                            textTransform: 'capitalize', transition: 'all 0.2s'
-                                        }}>
-                                        {l}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    {pwError && <div style={{ color: '#EF4444', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{pwError}</div>}
+                    {pwMsg && <div style={{ color: '#22C55E', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{pwMsg}</div>}
 
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-sec)', marginBottom: '0.75rem' }}>Default Interface View</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {['tabs', 'cards'].map(v => (
-                                    <button key={v} onClick={() => setView(v)}
-                                        style={{ 
-                                            flex: 1, padding: '0.6rem', borderRadius: 'var(--radius-sm)', 
-                                            border: `1px solid ${view === v ? 'var(--border-accent)' : 'var(--border)'}`, 
-                                            background: view === v ? 'var(--accent-soft)' : 'transparent', 
-                                            color: view === v ? 'var(--accent)' : 'var(--text-muted)', 
-                                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700',
-                                            textTransform: 'capitalize', transition: 'all 0.2s'
-                                        }}>
-                                        {v}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    <button onClick={handleChangePassword} disabled={pwLoading}
+                        style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+                        {pwLoading ? 'Updating...' : 'Update Password'}
+                    </button>
+                </div>
 
-                        <button onClick={handleSavePrefs}
-                            style={{ 
-                                width: '100%',
-                                background: prefsSaved ? 'var(--success)' : 'var(--accent)', 
-                                border: 'none', borderRadius: 'var(--radius)', 
-                                padding: '1rem', color: '#000', fontWeight: '800', 
-                                cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s'
-                            }}>
-                            {prefsSaved ? 'Changes Saved ✓' : 'Update Preferences'}
-                        </button>
-                    </div>
+                {/* Preferences */}
+                <div style={sectionStyle}>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Preferences</p>
 
-                    {/* Subscription Section */}
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Subscription & Usage</p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-2)', borderRadius: 'var(--radius)' }}>
-                            <div>
-                                <p style={{ fontWeight: '800', fontSize: '1rem', color: '#fff' }}>PitchPulse Free</p>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginTop: '0.25rem' }}>3 intelligence briefs / hour</p>
-                            </div>
-                            <span style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: '0.65rem', fontWeight: '800', padding: '0.25rem 0.75rem', borderRadius: '99px', border: '1px solid var(--border-accent)' }}>ACTIVE</span>
-                        </div>
-
-                        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.5rem', opacity: 0.6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                <div>
-                                    <p style={{ fontWeight: '800', color: 'var(--accent)' }}>Pro Access</p>
-                                    <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Unlimited briefs · Multi-company comparison</p>
-                                </div>
-                                <span style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Coming Soon</span>
-                            </div>
-                            <button disabled style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', color: 'var(--text-muted)', cursor: 'not-allowed', fontSize: '0.85rem', fontWeight: '700' }}>
-                                Upgrade Tier
+                    <label style={labelStyle}>Default Brief Length</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        {['short', 'medium', 'long'].map(l => (
+                            <button key={l} onClick={() => setLength(l)}
+                                style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--bg)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
+                                {l}
                             </button>
-                        </div>
+                        ))}
                     </div>
 
-                    {/* Danger Zone */}
-                    <div style={{ background: 'var(--danger)08', border: '1px solid #ef444430', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                        <p style={{ fontSize: '0.65rem', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: '700', marginBottom: '1.5rem' }}>Terminal Actions</p>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>Permanently delete your PitchPulse account and all associated intelligence data. This action is irreversible.</p>
-                        <button onClick={() => setDeleteModal(true)}
-                            style={{ background: 'none', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', padding: '0.75rem 1.5rem', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '800', transition: 'all 0.2s' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#ef444415'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                            Delete Account
-                        </button>
+                    <label style={labelStyle}>Default View</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        {['tabs', 'cards'].map(v => (
+                            <button key={v} onClick={() => setView(v)}
+                                style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: `1px solid ${view === v ? 'var(--accent)' : 'var(--border)'}`, background: view === v ? 'var(--accent-15)' : 'var(--bg)', color: view === v ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
+                                {v}
+                            </button>
+                        ))}
                     </div>
+
+                    <button onClick={handleSavePrefs}
+                        style={{ background: prefsSaved ? '#22C55E' : 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', transition: 'background 0.2s' }}>
+                        {prefsSaved ? 'Saved ✓' : 'Save Preferences'}
+                    </button>
+                </div>
+
+                {/* Subscription */}
+                <div style={sectionStyle}>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Subscription</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div>
+                            <p style={{ fontWeight: '700', margin: 0 }}>Free Plan</p>
+                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>3 briefs per hour</p>
+                        </div>
+                        <span style={{ background: 'var(--border)', color: 'var(--text-sec)', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '3px' }}>CURRENT</span>
+                    </div>
+
+                    <div style={{ background: 'var(--bg)', border: '1px solid #333333', borderRadius: '6px', padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                            <div>
+                                <p style={{ fontWeight: '700', margin: 0, color: 'var(--accent)' }}>Pro Plan</p>
+                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>Unlimited briefs · Priority generation</p>
+                            </div>
+                            <span style={{ background: 'var(--accent-20)', color: 'var(--accent)', fontSize: '0.65rem', padding: '0.2rem 0.6rem', borderRadius: '3px', border: '1px solid var(--accent-40)', whiteSpace: 'nowrap' }}>COMING SOON</span>
+                        </div>
+                        <button disabled
+                            style={{ background: 'var(--border)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: '#555555', cursor: 'not-allowed', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
+                            Upgrade — Coming Soon
+                        </button>
+                        <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                            Pro tier coming soon. <a href="mailto:hello@pitchpulse.app" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Join the waitlist →</a>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Danger Zone */}
+                <div style={{ ...sectionStyle, border: '1px solid #2a1010' }}>
+                    <p style={{ fontSize: '0.7rem', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Danger Zone</p>
+                    <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1rem' }}>Permanently delete your account and all briefs. This cannot be undone.</p>
+                    <button onClick={() => setDeleteModal(true)}
+                        style={{ background: 'none', border: '1px solid #EF4444', borderRadius: '4px', padding: '0.6rem 1.25rem', color: '#EF4444', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
+                        Delete Account
+                    </button>
                 </div>
             </div>
 
-            {/* Delete Modal */}
+            {/* Delete modal */}
             {deleteModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)f2', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
-                    <div style={{ background: 'var(--surface-2)', border: '1px solid #ef444450', borderRadius: 'var(--radius-lg)', padding: '2.5rem', maxWidth: '440px', width: '100%', textAlign: 'center' }}>
-                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--danger)10', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
-                            <Trash2 size={32} />
-                        </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.75rem' }}>Final Confirmation</h3>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.6' }}>Are you absolutely sure? All your saved briefs, watchlists, and account history will be purged immediately.</p>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
+                    <div style={{ background: 'var(--surface)', border: '1px solid #2a1010', borderRadius: '8px', padding: '2rem', maxWidth: '400px', width: '100%' }}>
+                        <h3 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>Delete your account?</h3>
+                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>All your briefs and data will be permanently deleted. There's no going back.</p>
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
                             <button onClick={() => setDeleteModal(false)}
-                                style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.8rem', color: 'var(--text-sec)', cursor: 'pointer', fontWeight: '700' }}>
+                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
                                 Cancel
                             </button>
                             <button onClick={handleDeleteAccount} disabled={deleteLoading}
-                                style={{ flex: 1, background: 'var(--danger)', border: 'none', borderRadius: 'var(--radius)', padding: '0.8rem', color: '#fff', cursor: 'pointer', fontWeight: '800' }}>
-                                {deleteLoading ? 'Processing...' : 'Delete Everything'}
+                                style={{ flex: 1, background: '#EF4444', border: 'none', borderRadius: '4px', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
+                                {deleteLoading ? 'Deleting...' : 'Yes, Delete Everything'}
                             </button>
                         </div>
                     </div>

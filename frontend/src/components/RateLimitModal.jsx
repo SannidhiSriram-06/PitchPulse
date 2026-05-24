@@ -9,43 +9,37 @@ export default function RateLimitModal({ resetInMinutes, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-      style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="border p-8 max-w-sm w-full space-y-6 relative overflow-hidden"
-        style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow)' }}
+        className="border rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4 relative"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'var(--accent)' }} />
-        
-        <h2 className="text-2xl font-800 tracking-tighter" style={{ color: 'var(--text)' }}>Limit Reached</h2>
-        
-        <div className="space-y-4">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-sec)' }}>
-            You've exhausted your 3 free intelligence briefs for this hour. 
-          </p>
-          <div className="p-4 rounded-lg bg-[var(--bg)] border border-[var(--border)]">
-            <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent)] mb-1">Status</p>
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              {resetInMinutes
-                ? `System reset in ${resetInMinutes} minutes.`
-                : 'Resets in approximately 60 minutes.'}
-            </p>
-          </div>
-        </div>
-
-        <p className="text-[0.65rem] uppercase tracking-widest font-bold pt-4 border-t" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-          Pro tier with unlimited briefs — coming soon.
-        </p>
-        
         <button
           onClick={onClose}
-          className="w-full py-3 rounded-lg font-800 text-sm transition-all"
-          style={{ background: 'var(--accent)', color: '#000', border: 'none', boxShadow: 'var(--accent-glow)' }}
-          onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.1)'}
-          onMouseLeave={e => e.currentTarget.style.filter = 'brightness(1)'}
+          className="absolute top-3 right-3 transition-colors"
+          style={{ color: 'var(--text-sec)' }}
+        >
+          &times;
+        </button>
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Hourly limit reached</h2>
+        <p className="text-sm" style={{ color: 'var(--text-sec)' }}>
+          You've used your 3 free briefs this hour.
+        </p>
+        <p className="text-sm" style={{ color: 'var(--text-sec)' }}>
+          {resetInMinutes
+            ? `Resets in ${resetInMinutes} minutes.`
+            : 'Resets in up to 60 minutes.'}
+        </p>
+        <p className="text-xs border-t pt-3" style={{ color: 'var(--text-sec)', borderColor: 'var(--border)' }}>
+          Upgrade to Pro for unlimited briefs — coming soon.
+        </p>
+        <button
+          onClick={onClose}
+          className="w-full py-2 rounded-lg font-semibold text-sm"
+          style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
         >
           Got it
         </button>

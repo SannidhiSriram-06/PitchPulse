@@ -2,25 +2,26 @@ import { create } from 'zustand'
 import useBriefStore from './briefStore'
 
 const useAuthStore = create((set) => ({
-    user: null,
+    token: localStorage.getItem('token') || null,
+    user: JSON.parse(localStorage.getItem('user') || 'null'),
 
-    syncClerkUser: (clerkUser) => {
-        if (!clerkUser) {
-            set({ user: null })
-            return
-        }
-        set({
-            user: {
-                id: clerkUser.id,
-                email: clerkUser.primaryEmailAddress?.emailAddress,
-            }
-        })
+    login: (token, user) => {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+        set({ token, user })
     },
 
     logout: () => {
-        set({ user: null })
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        set({ token: null, user: null })
         const { setCurrentBrief } = useBriefStore.getState()
         setCurrentBrief(null)
+    },
+
+    setUser: (user) => {
+        localStorage.setItem('user', JSON.stringify(user))
+        set({ user })
     },
 }))
 

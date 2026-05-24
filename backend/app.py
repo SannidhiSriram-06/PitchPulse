@@ -14,8 +14,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 from config import Config
 from database import db, init_db
-from clerk_auth import require_clerk_auth
 from auth import (
+    require_auth,
     validate_email,
     validate_password,
     sanitize_company_name,
@@ -94,62 +94,6 @@ def _register_routes(app):
     @app.route("/api/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok"})
-
-    # ── Clerk Webhook ─────────────────────────────────────────────────────────
-
-    @app.route("/api/webhooks/clerk", methods=["POST"])
-    def clerk_webhook():
-        from models import User
-        import json
-        
-        # Verify webhook signature
-        svix_id = request.headers.get("svix-id")
-        svix_timestamp = request.headers.get("svix-timestamp")  
-        svix_signature = request.headers.get("svix-signature")
-        
-        if not all([svix_id, svix_timestamp, svix_signature]):
-            return jsonify({"error": "Missing svix headers"}), 400
-        
-        try:
-            from svix.webhooks import Webhook
-            wh = Webhook(os.environ.get("CLERK_WEBHOOK_SECRET", ""))
-            payload = wh.verify(request.get_data(), {
-                "svix-id": svix_id,
-                "svix-timestamp": svix_timestamp,
-                "svix-signature": svix_signature,
-            })
-        except Exception as e:
-            return jsonify({"error": "Invalid webhook signature"}), 400
-        
-        event_type = payload.get("type")
-        data = payload.get("data", {})
-        
-        if event_type == "user.created":
-            clerk_user_id = data.get("id")
-            email = ""
-            email_addresses = data.get("email_addresses", [])
-            if email_addresses:
-                email = email_addresses[0].get("email_address", "")
-            
-            existing = User.query.filter_by(clerk_user_id=clerk_user_id).first()
-            if not existing:
-                user = User(
-                    clerk_user_id=clerk_user_id,
-                    email=email,
-                    tier="free",
-                    briefs_used_this_hour=0,
-                )
-                db.session.add(user)
-                db.session.commit()
-        
-        elif event_type == "user.deleted":
-            clerk_user_id = data.get("id")
-            user = User.query.filter_by(clerk_user_id=clerk_user_id).first()
-            if user:
-                db.session.delete(user)
-                db.session.commit()
-        
-        return jsonify({"message": "ok"}), 200
 
     # ── Auth: Register ────────────────────────────────────────────────────────
 
@@ -237,7 +181,7 @@ def _register_routes(app):
     # ── Auth: Me ──────────────────────────────────────────────────────────────
 
     @app.route("/api/auth/me", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def me():
         """
         GET /api/auth/me
@@ -248,7 +192,7 @@ def _register_routes(app):
     # ── Auth: Change Password ─────────────────────────────────────────────────
 
     @app.route("/api/auth/change-password", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def change_password():
         """
         POST /api/auth/change-password
@@ -358,7 +302,7 @@ def _register_routes(app):
     # ── Auth: Delete Account ──────────────────────────────────────────────────
 
     @app.route("/api/auth/account", methods=["DELETE"])
-    @require_clerk_auth
+    @require_auth
     def delete_account():
         """
         DELETE /api/auth/account
@@ -370,7 +314,7 @@ def _register_routes(app):
         return jsonify({"message": "Account deleted."}), 200
 
     @app.route("/api/user/preferences", methods=["GET", "PATCH"])
-    @require_clerk_auth
+    @require_auth
     def update_preferences():
         if request.method == 'GET':
             user = g.current_user
@@ -397,7 +341,7 @@ def _register_routes(app):
     # ── Generate Brief ────────────────────────────────────────────────────────
 
     @app.route("/api/brief", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def generate_brief():
         """
         POST /api/brief
@@ -504,7 +448,7 @@ def _register_routes(app):
     # ── Generate Comparison Brief ─────────────────────────────────────────────
 
     @app.route("/api/brief/compare", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def compare_brief():
         from models import Brief
         from agents import run_comparison
@@ -588,7 +532,7 @@ def _register_routes(app):
     # ── List Briefs ───────────────────────────────────────────────────────────
 
     @app.route("/api/briefs", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def list_briefs():
         """
         GET /api/briefs
@@ -615,7 +559,7 @@ def _register_routes(app):
     # ── Get Single Brief ──────────────────────────────────────────────────────
 
     @app.route('/api/briefs/<int:brief_id>', methods=['GET'])
-    @require_clerk_auth
+    @require_auth
     def get_brief(brief_id):
         from models import Brief
         brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
@@ -626,7 +570,7 @@ def _register_routes(app):
     # ── Toggle Save Brief ─────────────────────────────────────────────────────
 
     @app.route("/api/briefs/<int:brief_id>/save", methods=["PATCH"])
-    @require_clerk_auth
+    @require_auth
     def toggle_save_brief(brief_id):
         """
         PATCH /api/briefs/:id/save
@@ -645,7 +589,7 @@ def _register_routes(app):
     # ── Delete Brief ──────────────────────────────────────────────────────────
 
     @app.route("/api/briefs/<int:brief_id>", methods=["DELETE"])
-    @require_clerk_auth
+    @require_auth
     def delete_brief(brief_id):
         """
         DELETE /api/briefs/:id
@@ -664,7 +608,7 @@ def _register_routes(app):
     # ── Brief Feedback ────────────────────────────────────────────────────────
 
     @app.route("/api/briefs/<int:brief_id>/feedback", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def brief_feedback(brief_id):
         """
         POST /api/briefs/:id/feedback
@@ -698,7 +642,7 @@ def _register_routes(app):
     # ── Share: Generate Token ─────────────────────────────────────────────────
 
     @app.route("/api/briefs/<int:brief_id>/share", methods=["GET", "POST"])
-    @require_clerk_auth
+    @require_auth
     def get_share_token(brief_id):
         """
         GET /api/briefs/:id/share
@@ -747,7 +691,7 @@ def _register_routes(app):
     # ── Schedule Brief ────────────────────────────────────────────────────────
 
     @app.route("/api/briefs/<int:brief_id>/schedule", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def schedule_brief(brief_id):
         from models import Brief
         import resend
@@ -813,7 +757,7 @@ def _register_routes(app):
     # ── Diff Briefs ───────────────────────────────────────────────────────────
 
     @app.route("/api/briefs/company/<company_name>/diff", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def diff_briefs(company_name):
         from models import Brief
         
@@ -864,7 +808,7 @@ def _register_routes(app):
     # ── Watchlist: Get ────────────────────────────────────────────────────────
 
     @app.route("/api/watchlist", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def get_watchlist():
         """
         GET /api/watchlist
@@ -877,7 +821,7 @@ def _register_routes(app):
         return jsonify({"watchlist": [e.to_dict() for e in entries]}), 200
 
     @app.route("/api/watchlist/alerts", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def get_watchlist_alerts():
         from models import Watchlist
         from tools import company_web_search
@@ -904,7 +848,7 @@ def _register_routes(app):
         return jsonify({"alerts": alerts}), 200
 
     @app.route("/api/watchlist/notes/<company_name>", methods=["GET"])
-    @require_clerk_auth
+    @require_auth
     def get_watchlist_note(company_name):
         from models import WatchlistNote
 
@@ -915,7 +859,7 @@ def _register_routes(app):
         return jsonify({"note_text": note.note_text if note else ""}), 200
 
     @app.route("/api/watchlist/notes/<company_name>", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def save_watchlist_note(company_name):
         from models import WatchlistNote
 
@@ -943,7 +887,7 @@ def _register_routes(app):
     # ── Watchlist: Add ────────────────────────────────────────────────────────
 
     @app.route("/api/watchlist", methods=["POST"])
-    @require_clerk_auth
+    @require_auth
     def add_to_watchlist():
         """
         POST /api/watchlist
@@ -973,7 +917,7 @@ def _register_routes(app):
     # ── Watchlist: Remove ─────────────────────────────────────────────────────
 
     @app.route("/api/watchlist/<int:entry_id>", methods=["DELETE"])
-    @require_clerk_auth
+    @require_auth
     def remove_from_watchlist(entry_id):
         """
         DELETE /api/watchlist/:id

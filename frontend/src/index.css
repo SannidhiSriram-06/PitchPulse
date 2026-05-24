@@ -1,79 +1,51 @@
-@import '@fontsource-variable/space-grotesk';
+@import '@fontsource/space-grotesk';
+@import "tailwindcss";
 
-:root, [data-theme="dark"] {
-  --bg: #0d0d12;
-  --bg-2: #111118;
-  --surface: #13131a;
-  --surface-2: #1a1a24;
-  --surface-3: #1f1f2e;
-  --border: #ffffff0a;
-  --border-2: #ffffff14;
-  --border-accent: #a3e63530;
-  --text: #f4f4f5;
-  --text-sec: #71717a;
-  --text-muted: #3f3f46;
-  --accent: #a3e635;
-  --accent-dim: #a3e63580;
-  --accent-soft: #a3e63510;
-  --accent-glow: 0 0 20px #a3e63520;
-  --gradient: linear-gradient(135deg, #a3e635 0%, #84cc16 100%);
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --success: #22c55e;
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow: 0 4px 24px #00000060;
+:root {
+  --accent-blue: #3B82F6;
+  --danger: #EF4444;
+  --success: #22C55E;
+}
+
+[data-theme="dark"] {
+  --bg: #0A0A0A;
+  --surface: #111111;
+  --border: #222222;
+  --text: #FFFFFF;
+  --text-sec: #888888;
+  --text-primary: #FFFFFF;
+  --text-secondary: #888888;
+  --accent: #C8FF00;
+  --accent-text: #0A0A0A;
+  --accent-15: #C8FF0015;
+  --accent-20: #C8FF0020;
+  --accent-30: #C8FF0030;
+  --accent-40: #C8FF0040;
 }
 
 [data-theme="light"] {
-  --bg: #fafafa;
-  --bg-2: #f4f4f5;
-  --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #e4e4e7;
-  --border: #e4e4e7;
-  --border-2: #d4d4d8;
-  --border-accent: #a3e63560;
-  --text: #09090b;
-  --text-sec: #52525b;
-  --text-muted: #a1a1aa;
-  --accent: #65a30d;
-  --accent-dim: #65a30d80;
-  --accent-soft: #a3e63515;
-  --accent-glow: 0 0 20px #a3e63515;
-  --gradient: linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%);
-  --danger: #dc2626;
-  --warning: #d97706;
-  --success: #16a34a;
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow: 0 4px 24px #00000015;
+  --bg: #F5F5F0;
+  --surface: #FFFFFF;
+  --border: #E5E5E5;
+  --text: #1A1A1A;
+  --text-sec: #666666;
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --accent: #2563EB;
+  --accent-text: #FFFFFF;
+  --accent-15: #2563EB15;
+  --accent-20: #2563EB20;
+  --accent-30: #2563EB30;
+  --accent-40: #2563EB40;
 }
 
 * {
-  font-family: 'Space Grotesk Variable', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   box-sizing: border-box;
-  margin: 0; padding: 0;
-  -webkit-font-smoothing: antialiased;
 }
-body { background: var(--bg); color: var(--text); min-height: 100vh; }
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
-::selection { background: var(--accent-soft); color: var(--accent); }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-@keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-@keyframes glowPulse { 0%,100% { box-shadow: var(--accent-glow); } 50% { box-shadow: 0 0 30px #a3e63535; } }
-
-.card-hover {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-.card-hover:hover {
-  border-color: var(--border-accent) !important;
-  box-shadow: var(--accent-glow) !important;
-  transform: translateY(-2px);
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  margin: 0;
 }
