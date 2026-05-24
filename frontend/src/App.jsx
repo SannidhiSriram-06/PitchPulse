@@ -43,8 +43,8 @@ export default function App() {
             {!isMobile && (
               <div style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 40%, var(--surface) 100%)',
-                borderRight: '1px solid var(--border)',
+                background: '#f8f8f6',
+                borderRight: '1px solid #e5e5e5',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -52,44 +52,23 @@ export default function App() {
                 position: 'relative',
                 overflow: 'hidden',
               }}>
-                {/* Glow effect */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-100px',
-                  left: '-100px',
-                  width: '400px',
-                  height: '400px',
-                  background: 'radial-gradient(circle, var(--accent-soft) 0%, transparent 70%)',
-                  pointerEvents: 'none',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-50px',
-                  right: '-50px',
-                  width: '300px',
-                  height: '300px',
-                  background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
-                  pointerEvents: 'none',
-                  opacity: 0.5
-                }} />
-
                 {/* Logo */}
                 <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                  <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                  <span style={{ color: '#0a0a0a' }}>Pitch</span><span style={{ color: '#84cc16' }}>Pulse</span>
                 </div>
 
                 {/* Main pitch */}
                 <div>
                   <h1 style={{
-                    fontSize: 'clamp(2rem, 4vw, 3rem)',
-                    fontWeight: '800',
-                    letterSpacing: '-2px',
-                    lineHeight: '1',
-                    color: '#fff',
+                    fontSize: 'clamp(2.5rem, 4vw, 3.5rem)',
+                    fontWeight: '900',
+                    letterSpacing: '-3px',
+                    lineHeight: '0.95',
+                    color: '#0a0a0a',
                     marginBottom: '1.5rem',
                   }}>
                     Know your prospect.<br />
-                    <span style={{ color: 'var(--accent)' }}>Before you walk in.</span>
+                    <span style={{ color: '#84cc16' }}>Before you walk in.</span>
                   </h1>
                   <p style={{ color: 'var(--text-sec)', fontSize: '1rem', lineHeight: '1.6', maxWidth: '420px', marginBottom: '4rem' }}>
                     AI-powered sales briefs in under 60 seconds. News, financials, talking points, and risks — everything you need before any meeting.
@@ -108,8 +87,8 @@ export default function App() {
                           width: '40px',
                           height: '40px',
                           borderRadius: '8px',
-                          background: 'var(--accent-soft)',
-                          border: '1px solid var(--border-accent)',
+                          background: 'rgba(132,204,22,0.1)',
+                          border: '1px solid rgba(132,204,22,0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -118,15 +97,15 @@ export default function App() {
                         }}>
                           {f.icon}
                         </div>
-                        <span style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
+                        <span style={{ color: '#0a0a0a', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Bottom quote */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <div style={{ borderTop: '1px solid #e5e5e5', paddingTop: '1.5rem' }}>
+                  <p style={{ color: '#a3a3a3', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     Built for sales reps who prep.
                   </p>
                 </div>
@@ -141,7 +120,7 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2rem',
-              background: 'var(--bg)',
+              background: '#ffffff',
               borderLeft: isMobile ? 'none' : '1px solid var(--border)'
             }}>
               <SignIn routing="path" path="/sign-in" forceRedirectUrl="/onboarding-check" />
@@ -158,8 +137,8 @@ export default function App() {
             {!isMobile && (
               <div style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 40%, var(--surface) 100%)',
-                borderRight: '1px solid var(--border)',
+                background: '#f8f8f6',
+                borderRight: '1px solid #e5e5e5',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -167,44 +146,23 @@ export default function App() {
                 position: 'relative',
                 overflow: 'hidden',
               }}>
-                {/* Glow effect */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-100px',
-                  left: '-100px',
-                  width: '400px',
-                  height: '400px',
-                  background: 'radial-gradient(circle, var(--accent-soft) 0%, transparent 70%)',
-                  pointerEvents: 'none',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-50px',
-                  right: '-50px',
-                  width: '300px',
-                  height: '300px',
-                  background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
-                  pointerEvents: 'none',
-                  opacity: 0.5
-                }} />
-
                 {/* Logo */}
                 <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                  <span style={{ color: '#fff' }}>Pitch</span><span style={{ color: 'var(--accent)' }}>Pulse</span>
+                  <span style={{ color: '#0a0a0a' }}>Pitch</span><span style={{ color: '#84cc16' }}>Pulse</span>
                 </div>
 
                 {/* Main pitch */}
                 <div>
                   <h1 style={{
-                    fontSize: 'clamp(2rem, 4vw, 3rem)',
-                    fontWeight: '800',
-                    letterSpacing: '-2px',
-                    lineHeight: '1',
-                    color: '#fff',
+                    fontSize: 'clamp(2.5rem, 4vw, 3.5rem)',
+                    fontWeight: '900',
+                    letterSpacing: '-3px',
+                    lineHeight: '0.95',
+                    color: '#0a0a0a',
                     marginBottom: '1.5rem',
                   }}>
                     Know your prospect.<br />
-                    <span style={{ color: 'var(--accent)' }}>Before you walk in.</span>
+                    <span style={{ color: '#84cc16' }}>Before you walk in.</span>
                   </h1>
                   <p style={{ color: 'var(--text-sec)', fontSize: '1rem', lineHeight: '1.6', maxWidth: '420px', marginBottom: '4rem' }}>
                     AI-powered sales briefs in under 60 seconds. News, financials, talking points, and risks — everything you need before any meeting.
@@ -223,8 +181,8 @@ export default function App() {
                           width: '40px',
                           height: '40px',
                           borderRadius: '8px',
-                          background: 'var(--accent-soft)',
-                          border: '1px solid var(--border-accent)',
+                          background: 'rgba(132,204,22,0.1)',
+                          border: '1px solid rgba(132,204,22,0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -233,15 +191,15 @@ export default function App() {
                         }}>
                           {f.icon}
                         </div>
-                        <span style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
+                        <span style={{ color: '#0a0a0a', fontSize: '0.9rem', fontWeight: '600' }}>{f.text}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Bottom quote */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <div style={{ borderTop: '1px solid #e5e5e5', paddingTop: '1.5rem' }}>
+                  <p style={{ color: '#a3a3a3', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     Built for sales reps who prep.
                   </p>
                 </div>
@@ -256,7 +214,7 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2rem',
-              background: 'var(--bg)',
+              background: '#ffffff',
               borderLeft: isMobile ? 'none' : '1px solid var(--border)'
             }}>
               <SignUp routing="path" path="/sign-up" forceRedirectUrl="/onboarding-check" />
