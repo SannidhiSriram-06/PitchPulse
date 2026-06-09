@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
 import Layout from '../components/Layout'
 import useAuthStore from '../store/authStore'
-import HorizontalTextReveal from '../components/HorizontalTextReveal'
 import ExpandableTabs from '../components/ExpandableTabs'
 import ShiftCard from '../components/ShiftCard'
 import StorageWidget from '../components/StorageWidget'
@@ -305,10 +304,8 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-5">
           <div className="flex flex-col md:flex-row md:items-center gap-5">
             <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
-                <HorizontalTextReveal inline>
-                  {`${greeting()}${user?.display_name ? `, ${user.display_name}` : ''}`}
-                </HorizontalTextReveal>
+              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1 text-tx-primary-light dark:text-tx-primary">
+                {`${greeting()}${user?.display_name ? `, ${user.display_name}` : ''}`}
               </h1>
               <p className="text-tx-secondary-light dark:text-tx-secondary text-sm">
                 {totalBriefs > 0
