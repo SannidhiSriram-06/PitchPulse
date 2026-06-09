@@ -6,7 +6,6 @@ import api from '../lib/api'
 import Layout from '../components/Layout'
 import useAuthStore from '../store/authStore'
 import RateLimitModal from '../components/RateLimitModal'
-import HorizontalTextReveal from '../components/HorizontalTextReveal'
 import AIChatInput from '../components/AIChatInput'
 import { ALL_SECTIONS, MODELS } from '../utils/constants'
 import { useToast } from '../components/Toast'
@@ -232,8 +231,8 @@ export default function BriefGeneratorPage() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
-                <HorizontalTextReveal inline>New Brief</HorizontalTextReveal>
+              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1 text-tx-primary-light dark:text-tx-primary">
+                New Brief
               </h1>
               <p className="text-sm text-tx-secondary">
                 Describe your research goal — the AI figures out the rest

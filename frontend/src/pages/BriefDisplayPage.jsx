@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
 import api from '../lib/api'
 import Layout from '../components/Layout'
-import HorizontalTextReveal from '../components/HorizontalTextReveal'
 import ExpandableTabs from '../components/ExpandableTabs'
 import { MetalIconButton } from '../components/MetalButton'
 import StockChart from '../components/StockChart'
@@ -367,8 +366,8 @@ export default function BriefDisplayPage() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">
-                <HorizontalTextReveal inline>{data.company_name}</HorizontalTextReveal>
+              <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 text-tx-primary-light dark:text-tx-primary">
+                {data.company_name}
               </h1>
               <p className="font-mono text-xs text-tx-tertiary">
                 Generated {new Date(data.created_at).toLocaleString()} · {data.length_used} brief

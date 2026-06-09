@@ -4,7 +4,6 @@ import { Bookmark, Search, Trash2, FileText, ChevronRight, Clock } from 'lucide-
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
 import Layout from '../components/Layout'
-import HorizontalTextReveal from '../components/HorizontalTextReveal'
 import { useToast } from '../components/Toast'
 
 const LIMIT = 10
@@ -75,8 +74,8 @@ export default function HistoryPage() {
   return (
     <Layout>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
-          <HorizontalTextReveal inline>Brief History</HorizontalTextReveal>
+        <h1 className="text-2xl md:text-3xl font-display font-bold mb-1 text-tx-primary-light dark:text-tx-primary">
+          Brief History
         </h1>
         <p className="text-sm text-tx-secondary">{total} brief{total !== 1 ? 's' : ''} total</p>
       </motion.div>
