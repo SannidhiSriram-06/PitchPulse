@@ -1,28 +1,48 @@
 import { create } from 'zustand'
-import useBriefStore from './briefStore'
+import api from '../lib/api'
 
-const useAuthStore = create((set) => ({
-    token: localStorage.getItem('token') || null,
-    user: JSON.parse(localStorage.getItem('user') || 'null'),
+const useAuthStore = create((set, get) => ({
+  user: null,
+  loading: true,
 
-    login: (token, user) => {
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-        set({ token, user })
-    },
+  setUser: (user) => set({ user, loading: false }),
 
-    logout: () => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        set({ token: null, user: null })
-        const { setCurrentBrief } = useBriefStore.getState()
-        setCurrentBrief(null)
-    },
+  clearUser: () => set({ user: null, loading: false }),
 
-    setUser: (user) => {
-        localStorage.setItem('user', JSON.stringify(user))
-        set({ user })
-    },
+  updateUser: (updates) =>
+    set((s) => ({ user: s.user ? { ...s.user, ...updates } : null })),
+
+  /**
+   * Called after a successful brief generation.
+   * Updates the remaining count and reset timestamp so the
+   * UsagePill reflects reality without a full re-fetch.
+   */
+  consumeBriefCredit: ({ briefs_remaining_this_hour, reset_at }) =>
+    set((s) => ({
+      user: s.user
+        ? { ...s.user, briefs_remaining_this_hour, reset_at }
+        : null
+    })),
+
+  /**
+   * Lightweight poll of /api/usage — syncs remaining count from server.
+   * Called on a 30-second interval from UsagePill when user is free tier.
+   */
+  refreshUsage: async () => {
+    const { user } = get()
+    if (!user || user.tier !== 'free') return
+    try {
+      const res = await api.get('/api/usage')
+      const { remaining, reset_at } = res.data
+      set((s) => ({
+        user: s.user
+          ? { ...s.user, briefs_remaining_this_hour: remaining, reset_at }
+          : null
+      }))
+    } catch (_) {
+      // silently ignore — stale UI is acceptable
+    }
+  },
 }))
 
 export default useAuthStore

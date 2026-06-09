@@ -1,193 +1,273 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useAuthStore from '../store/authStore'
-import usePrefsStore from '../store/prefsStore'
+import { useUser } from '@clerk/clerk-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, CheckCircle2, Sparkles } from 'lucide-react'
 import api from '../lib/api'
+import { MetalButton } from '../components/MetalButton'
+import { useToast } from '../components/Toast'
+import { TIMEZONES } from '../utils/constants'
 
 export default function OnboardingPage() {
-    const navigate = useNavigate()
-    const user = useAuthStore((s) => s.user)
-    const setPrefs = usePrefsStore((s) => s.setPrefs)
+  const navigate = useNavigate()
+  const { user: clerkUser } = useUser()
+  const toast = useToast()
+  const [step, setStep] = useState(1)
+  const [companies, setCompanies] = useState([])
+  const [companyInput, setCompanyInput] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [prefs, setPrefs] = useState({
+    default_brief_length: 'medium',
+    default_view: 'tabs',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
+  })
 
-    const [step, setStep] = useState(1)
-    const [company, setCompany] = useState('')
-    const [companies, setCompanies] = useState([])
-    const [length, setLength] = useState('medium')
-    const [view, setView] = useState('tabs')
-    const [loading, setLoading] = useState(false)
+  // Flag is keyed to the Clerk user ID so different users on the same device each see onboarding
+  const onboardedKey = clerkUser ? `pp_onboarded_${clerkUser.id}` : 'pp_onboarded'
 
-    const addCompany = () => {
-        const trimmed = company.trim()
-        if (!trimmed || companies.includes(trimmed) || companies.length >= 5) return
-        setCompanies([...companies, trimmed])
-        setCompany('')
+  useEffect(() => {
+    if (localStorage.getItem(onboardedKey)) {
+      navigate('/dashboard')
     }
+  }, [navigate, onboardedKey])
 
-    const removeCompany = (c) => setCompanies(companies.filter((x) => x !== c))
+  const addCompany = () => {
+    const trimmed = companyInput.trim()
+    if (!trimmed || companies.length >= 10 || companies.includes(trimmed)) return
+    setCompanies([...companies, trimmed])
+    setCompanyInput('')
+  }
 
-    const finish = async () => {
-        setLoading(true)
-        setPrefs({ defaultLength: length, defaultView: view })
+  const removeCompany = (idx) => {
+    setCompanies(companies.filter((_, i) => i !== idx))
+  }
+
+  const completeOnboarding = async () => {
+    setSubmitting(true)
+    try {
+      // Add watchlist companies — skip duplicates (409) and limit errors (400), they're non-fatal
+      for (const comp of companies) {
         try {
-            await api.patch('/api/user/preferences', { default_length: length, default_view: view })
-            for (const c of companies) {
-                await api.post('/api/watchlist', { company_name: c })
-            }
-        } catch (e) { /* non-fatal */ }
-        localStorage.setItem('onboarded', 'true')
-        navigate('/dashboard')
+          await api.post('/api/watchlist', { company_name: comp })
+        } catch (err) {
+          if (err.response?.status === 429) {
+            toast.warning(`Watchlist limit reached — some companies weren't added`)
+            break
+          }
+          // 409 duplicate: silently skip
+        }
+      }
+
+      // Save user preferences
+      await api.patch('/api/user/me', {
+        default_brief_length: prefs.default_brief_length,
+        timezone: prefs.timezone
+      })
+
+      // Save view pref if endpoint exists — non-fatal if not
+      try {
+        await api.patch('/api/user/preferences', { default_view: prefs.default_view })
+      } catch { /* endpoint optional */ }
+
+      localStorage.setItem(onboardedKey, 'true')
+      navigate('/dashboard')
+    } catch (err) {
+      toast.error('Something went wrong — please try again')
+      console.error(err)
+    } finally {
+      setSubmitting(false)
     }
+  }
 
-    const stepLabel = ['Add companies', 'Set preferences', "You're ready"]
+  const slideVariants = {
+    enter:  { opacity: 0, x: 24 },
+    center: { opacity: 1, x: 0  },
+    exit:   { opacity: 0, x: -24 }
+  }
 
-    return (
-        <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-
-            {/* Logo */}
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '3rem', letterSpacing: '-0.5px' }}>
-                Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
-            </div>
-
-            {/* Step indicators */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2.5rem', alignItems: 'center' }}>
-                {[1, 2, 3].map((s) => (
-                    <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{
-                            width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '0.75rem', fontWeight: '700',
-                            background: step === s ? 'var(--accent)' : step > s ? 'var(--border)' : 'var(--surface)',
-                            color: step === s ? 'var(--bg)' : step > s ? 'var(--text-sec)' : '#444444',
-                            border: step > s ? '1px solid #333' : 'none'
-                        }}>
-                            {step > s ? '✓' : s}
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: step === s ? 'var(--text)' : '#444444' }}>{stepLabel[s - 1]}</span>
-                        {s < 3 && <div style={{ width: '2rem', height: '1px', background: 'var(--border)', marginLeft: '0.25rem' }} />}
-                    </div>
-                ))}
-            </div>
-
-            {/* Card */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '2.5rem', width: '100%', maxWidth: '480px' }}>
-
-                {/* Step 1 */}
-                {step === 1 && (
-                    <>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>Add companies you meet often</h2>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>These go on your watchlist for quick one-click briefs. Add up to 5.</p>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                            <input
-                                value={company} onChange={(e) => setCompany(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addCompany()}
-                                placeholder="e.g. Infosys, Razorpay..."
-                                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }}
-                            />
-                            <button onClick={addCompany} disabled={companies.length >= 5}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                Add
-                            </button>
-                        </div>
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem', marginBottom: '1.5rem' }}>
-                            {companies.map((c) => (
-                                <div key={c} style={{ background: 'var(--bg)', border: '1px solid #333', borderRadius: '4px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {c}
-                                    <span onClick={() => removeCompany(c)} style={{ color: 'var(--text-sec)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>×</span>
-                                </div>
-                            ))}
-                            {companies.length === 0 && <span style={{ color: '#444', fontSize: '0.8rem' }}>No companies added yet</span>}
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span onClick={() => setStep(2)} style={{ color: 'var(--text-sec)', fontSize: '0.8rem', cursor: 'pointer' }}>Skip</span>
-                            <button onClick={() => setStep(2)}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1.5rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                Continue →
-                            </button>
-                        </div>
-                    </>
-                )}
-
-                {/* Step 2 */}
-                {step === 2 && (
-                    <>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>Set your brief preferences</h2>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>You can change these any time in settings.</p>
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default brief length</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {['short', 'medium', 'long'].map((l) => (
-                                    <button key={l} onClick={() => setLength(l)}
-                                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--bg)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
-                                        {l}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem' }}>Default view style</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {['tabs', 'cards'].map((v) => (
-                                    <button key={v} onClick={() => setView(v)}
-                                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${view === v ? 'var(--accent)' : 'var(--border)'}`, background: view === v ? 'var(--accent-15)' : 'var(--bg)', color: view === v ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
-                                        {v === 'tabs' ? 'Tabs' : 'Cards'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <button onClick={() => setStep(1)}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem 1.25rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                ← Back
-                            </button>
-                            <button onClick={() => setStep(3)}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1.5rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                Continue →
-                            </button>
-                        </div>
-                    </>
-                )}
-
-                {/* Step 3 */}
-                {step === 3 && (
-                    <>
-                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚡</div>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>You're all set</h2>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>Here's what we saved for you.</p>
-                        </div>
-
-                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem', marginBottom: '2rem' }}>
-                            {[
-                                { label: 'Watchlist', value: companies.length > 0 ? companies.join(', ') : 'None added' },
-                                { label: 'Default length', value: length },
-                                { label: 'Default view', value: view },
-                            ].map((item) => (
-                                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #1a1a1a' }}>
-                                    <span style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>{item.label}</span>
-                                    <span style={{ fontSize: '0.875rem', textTransform: 'capitalize', color: 'var(--text)' }}>{item.value}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <button onClick={() => setStep(2)}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem 1.25rem', color: 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                ← Back
-                            </button>
-                            <button onClick={finish} disabled={loading}
-                                style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.75rem 1.5rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                {loading ? 'Saving...' : 'Go to Dashboard →'}
-                            </button>
-                        </div>
-                    </>
-                )}
-
-            </div>
+  return (
+    <div className="min-h-screen bg-bg-light dark:bg-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Step dots */}
+        <div className="flex justify-center gap-2 mb-8">
+          {[1, 2, 3].map(s => (
+            <div
+              key={s}
+              className={`h-2 rounded-full transition-all duration-500 ${
+                s < step  ? 'w-6 bg-accent/60' :
+                s === step ? 'w-8 bg-accent' :
+                             'w-2 bg-surface-raised'
+              }`}
+            />
+          ))}
         </div>
-    )
+
+        <div className="bg-surface-light dark:bg-surface border border-border-strong rounded-2xl p-7 relative overflow-hidden squircle">
+          <AnimatePresence mode="wait">
+            {/* ── Step 1: Watchlist ── */}
+            {step === 1 && (
+              <motion.div key="step1" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22 }}>
+                <h2 className="text-2xl font-display font-bold mb-1.5">Pin your key accounts</h2>
+                <p className="text-sm text-tx-secondary mb-6 leading-relaxed">
+                  Add companies you meet with regularly. PitchPulse will surface them first on your dashboard.
+                </p>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={companyInput}
+                    onChange={e => setCompanyInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addCompany()}
+                    placeholder="e.g. Salesforce, HubSpot…"
+                    className="flex-1 bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl px-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none transition-colors"
+                  />
+                  <MetalButton onClick={addCompany} variant="default" size="default" className="px-5 py-2.5 rounded-xl">
+                    Add
+                  </MetalButton>
+                </div>
+                <div className="flex flex-wrap gap-2 min-h-[80px] mb-2">
+                  {companies.map((c, i) => (
+                    <div key={i} className="flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium">
+                      {c}
+                      <button onClick={() => removeCompany(i)} className="hover:text-red-400 transition-colors ml-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {companies.length > 0 && (
+                  <p className="text-xs text-tx-tertiary mb-4">{companies.length}/10 companies added</p>
+                )}
+                <div className="flex justify-end mt-6">
+                  <MetalButton onClick={() => setStep(2)} variant="outline" size="sm">
+                    {companies.length > 0 ? 'Next →' : 'Skip for now →'}
+                  </MetalButton>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Step 2: Preferences ── */}
+            {step === 2 && (
+              <motion.div key="step2" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22 }}>
+                <h2 className="text-2xl font-display font-bold mb-1.5">Customise your experience</h2>
+                <p className="text-sm text-tx-secondary mb-6">These can all be changed later in Settings.</p>
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-tx-primary-light dark:text-tx-primary mb-2">Default brief length</label>
+                    <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl">
+                      {[
+                        { id: 'short',  label: 'Quick Scan'  },
+                        { id: 'medium', label: 'Standard'    },
+                        { id: 'long',   label: 'Deep Dive'   },
+                      ].map(l => (
+                        <button
+                          key={l.id}
+                          onClick={() => setPrefs({ ...prefs, default_brief_length: l.id })}
+                          className={`flex-1 py-2 rounded-lg capitalize text-sm font-medium transition-all ${
+                            prefs.default_brief_length === l.id
+                              ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary'
+                              : 'text-tx-tertiary hover:text-tx-secondary'
+                          }`}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-tx-primary-light dark:text-tx-primary mb-2">Default view</label>
+                    <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl">
+                      {['tabs', 'cards'].map(v => (
+                        <button
+                          key={v}
+                          onClick={() => setPrefs({ ...prefs, default_view: v })}
+                          className={`flex-1 py-2 rounded-lg capitalize text-sm font-medium transition-all ${
+                            prefs.default_view === v
+                              ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary'
+                              : 'text-tx-tertiary hover:text-tx-secondary'
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-tx-primary-light dark:text-tx-primary mb-2">Timezone</label>
+                    <select
+                      value={prefs.timezone}
+                      onChange={e => setPrefs({ ...prefs, timezone: e.target.value })}
+                      className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl px-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none transition-colors"
+                    >
+                      {TIMEZONES.map(tz => (
+                        <option key={tz.value} value={tz.value}>{tz.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-between mt-8">
+                  <MetalButton onClick={() => setStep(1)} variant="outline" size="sm">← Back</MetalButton>
+                  <MetalButton onClick={() => setStep(3)} variant="default" size="sm">Next →</MetalButton>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Step 3: Ready ── */}
+            {step === 3 && (
+              <motion.div key="step3" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22 }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-accent/10 rounded-2xl flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-accent" />
+                  </div>
+                  <h2 className="text-2xl font-display font-bold">You're all set!</h2>
+                </div>
+                <p className="text-sm text-tx-secondary mb-6 leading-relaxed">
+                  PitchPulse will generate AI-powered sales intelligence briefs in about 60 seconds.
+                  Start by generating a brief for your next meeting.
+                </p>
+                <div className="bg-surface-raised-light dark:bg-surface-raised border border-border rounded-xl p-4 mb-6 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="text-tx-secondary">
+                      Watchlist: <strong className="text-tx-primary-light dark:text-tx-primary">
+                        {companies.length > 0 ? `${companies.length} companies pinned` : 'skipped'}
+                      </strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="text-tx-secondary">
+                      Default length: <strong className="text-tx-primary-light dark:text-tx-primary capitalize">{prefs.default_brief_length}</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="text-tx-secondary">
+                      Timezone: <strong className="text-tx-primary-light dark:text-tx-primary">{prefs.timezone}</strong>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <MetalButton
+                    onClick={completeOnboarding}
+                    disabled={submitting}
+                    variant="default"
+                    preset="chromatic"
+                    className="w-full justify-center"
+                  >
+                    {submitting ? 'Setting up…' : 'Go to Dashboard →'}
+                  </MetalButton>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="text-xs text-tx-tertiary hover:text-tx-secondary text-center transition-colors"
+                  >
+                    ← Go back to preferences
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  )
 }

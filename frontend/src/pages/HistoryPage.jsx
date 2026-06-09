@@ -1,165 +1,191 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trash2, Bookmark, Search, Sun, Moon } from 'lucide-react'
+import { Bookmark, Search, Trash2, FileText, ChevronRight, Clock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
-import useIsMobile from '../hooks/useIsMobile'
-import useThemeStore from '../store/themeStore'
-import { BriefCardSkeleton } from '../components/Skeletons'
+import Layout from '../components/Layout'
+import HorizontalTextReveal from '../components/HorizontalTextReveal'
+import { useToast } from '../components/Toast'
 
-const DATE_FILTERS = ['all', 'today', 'this week', 'this month']
+const LIMIT = 10
 
 export default function HistoryPage() {
-    const navigate = useNavigate()
-    const isMobile = useIsMobile()
-    const { theme, toggleTheme } = useThemeStore()
-    const [briefs, setBriefs] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
-    const [dateFilter, setDateFilter] = useState('all')
-    const [savedOnly, setSavedOnly] = useState(false)
-    const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [briefs, setBriefs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [search, setSearch] = useState('')
+  const [savedOnly, setSavedOnly] = useState(false)
+  const [total, setTotal] = useState(0)
+  const navigate = useNavigate()
+  const toast = useToast()
 
-    useEffect(() => { fetchBriefs() }, [])
-
-    const fetchBriefs = async () => {
-        try {
-            const res = await api.get('/api/briefs')
-            setBriefs(res.data.briefs || [])
-        } catch (e) { }
-        setLoading(false)
+  // Fetch fresh list (offset = 0)
+  const fetchBriefs = useCallback(async (q, saved) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: LIMIT, offset: 0 })
+      if (q) params.set('search', q)
+      if (saved) params.set('saved', 'true')
+      const res = await api.get(`/api/briefs?${params}`)
+      setBriefs(res.data.briefs || [])
+      setTotal(res.data.total || 0)
+    } catch {
+      toast.error('Failed to load briefs')
+    } finally {
+      setLoading(false)
     }
+  }, [])
 
-    const handleDelete = async (id) => {
-        try {
-            await api.delete(`/api/briefs/${id}`)
-            setBriefs(briefs.filter(b => b.id !== id))
-            setDeleteConfirm(null)
-        } catch (e) { }
+  // Debounce search + filter changes
+  useEffect(() => {
+    const t = setTimeout(() => fetchBriefs(search, savedOnly), 300)
+    return () => clearTimeout(t)
+  }, [search, savedOnly, fetchBriefs])
+
+  // Load more — compute new offset inline, don't rely on state
+  const loadMore = async () => {
+    const newOffset = briefs.length          // current length = next offset
+    setLoadingMore(true)
+    try {
+      const params = new URLSearchParams({ limit: LIMIT, offset: newOffset })
+      if (search) params.set('search', search)
+      if (savedOnly) params.set('saved', 'true')
+      const res = await api.get(`/api/briefs?${params}`)
+      setBriefs(prev => [...prev, ...(res.data.briefs || [])])
+      setTotal(res.data.total || 0)
+    } catch {
+      toast.error('Failed to load more')
+    } finally {
+      setLoadingMore(false)
     }
+  }
 
-    const filterByDate = (brief) => {
-        if (dateFilter === 'all') return true
-        const created = new Date(brief.created_at.endsWith('Z') || brief.created_at.includes('+') ? brief.created_at : brief.created_at + 'Z')
-        const now = new Date()
-        if (dateFilter === 'today') {
-            return created.toDateString() === now.toDateString()
-        }
-        if (dateFilter === 'this week') {
-            const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
-            return created >= weekAgo
-        }
-        if (dateFilter === 'this month') {
-            return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear()
-        }
-        return true
+  const deleteBrief = async (e, id) => {
+    e.stopPropagation()
+    try {
+      await api.delete(`/api/briefs/${id}`)
+      setBriefs(prev => prev.filter(b => b.id !== id))
+      setTotal(t => Math.max(0, t - 1))
+      toast.success('Brief deleted')
+    } catch {
+      toast.error('Failed to delete brief')
     }
+  }
 
-    const filtered = briefs
-        .filter(b => b.company_name.toLowerCase().includes(search.toLowerCase()))
-        .filter(filterByDate)
-        .filter(b => savedOnly ? b.saved : true)
+  return (
+    <Layout>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
+          <HorizontalTextReveal inline>Brief History</HorizontalTextReveal>
+        </h1>
+        <p className="text-sm text-tx-secondary">{total} brief{total !== 1 ? 's' : ''} total</p>
+      </motion.div>
 
-    const formatDate = (iso) => {
-        if (!iso) return ''
-        return new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z').toLocaleString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    }
-
-    return (
-        <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
-                <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                    <ArrowLeft size={16} /> Dashboard
-                </button>
-                <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
-                </span>
-            </nav>
-
-            <div style={{ maxWidth: '800px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '1.5rem' }}>Brief History</h1>
-
-                {/* Filters */}
-                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', flex: isMobile ? 'none' : 1, width: isMobile ? '100%' : 'auto', minWidth: '200px' }}>
-                        <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-sec)' }} />
-                        <input value={search} onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by company..."
-                            style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.5rem 0.75rem 0.5rem 2rem', color: 'var(--text)', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: isMobile ? 'wrap' : 'nowrap', overflowX: 'auto' }}>
-                        {DATE_FILTERS.map(f => (
-                            <button key={f} onClick={() => setDateFilter(f)}
-                                style={{ padding: '0.4rem 0.75rem', borderRadius: '4px', border: `1px solid ${dateFilter === f ? 'var(--accent)' : 'var(--border)'}`, background: dateFilter === f ? 'var(--accent-15)' : 'transparent', color: dateFilter === f ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
-                                {f}
-                            </button>
-                        ))}
-                    </div>
-
-                    <button onClick={() => setSavedOnly(!savedOnly)}
-                        style={{ padding: '0.4rem 0.75rem', borderRadius: '4px', border: `1px solid ${savedOnly ? 'var(--accent)' : 'var(--border)'}`, background: savedOnly ? 'var(--accent-15)' : 'transparent', color: savedOnly ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
-                        <Bookmark size={12} /> Saved only
-                    </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {loading ? (
-                        Array.from({ length: 4 }).map((_, i) => <BriefCardSkeleton key={i} />)
-                    ) : filtered.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px dashed var(--border)', borderRadius: '8px' }}>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem' }}>No briefs match your search.</p>
-                        </div>
-                    ) : (
-                        filtered.map(brief => (
-                            <div key={brief.id}
-                            style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-
-                            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/brief/${brief.id}`)}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                                    <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{brief.company_name}</span>
-                                    {brief.saved && <Bookmark size={13} style={{ color: 'var(--accent)' }} fill="var(--accent)" />}
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-sec)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '3px', padding: '0.1rem 0.4rem', textTransform: 'capitalize' }}>{brief.length}</span>
-                                </div>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: 0 }}>{formatDate(brief.created_at)}</p>
-                            </div>
-
-                            <button onClick={() => setDeleteConfirm(brief.id)}
-                                style={{ background: 'none', border: 'none', color: '#444444', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
-                                onMouseEnter={(e) => e.currentTarget.style.color = '#EF4444'}
-                                onMouseLeave={(e) => e.currentTarget.style.color = '#444444'}>
-                                <Trash2 size={15} />
-                            </button>
-                        </div>
-                    )))}
-                </div>
-            </div>
-
-            {/* Delete confirmation modal */}
-            {deleteConfirm && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '2rem', maxWidth: '380px', width: '90%' }}>
-                        <h3 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>Delete this brief?</h3>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>This can't be undone.</p>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <button onClick={() => setDeleteConfirm(null)}
-                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem' }}>
-                                Cancel
-                            </button>
-                            <button onClick={() => handleDelete(deleteConfirm)}
-                                style={{ flex: 1, background: '#EF4444', border: 'none', borderRadius: '4px', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.875rem', fontWeight: '700' }}>
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-tx-tertiary pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search company name…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none transition-colors"
+          />
         </div>
-    )
+        <button
+          onClick={() => setSavedOnly(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+            savedOnly
+              ? 'bg-accent/10 border-accent text-accent'
+              : 'border-border dark:border-[rgba(255,255,255,0.06)] text-tx-secondary hover:text-tx-primary'
+          }`}
+        >
+          <Bookmark className={`w-4 h-4 ${savedOnly ? 'fill-accent' : ''}`} />
+          Saved only
+        </button>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-24 bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl shimmer" />
+          ))}
+        </div>
+      ) : briefs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-surface-raised-light dark:bg-surface-raised flex items-center justify-center">
+            <FileText className="w-6 h-6 text-tx-tertiary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-tx-primary-light dark:text-tx-primary mb-1">
+              {savedOnly ? 'No saved briefs' : search ? 'No results found' : 'No briefs yet'}
+            </p>
+            <p className="text-xs text-tx-secondary">
+              {savedOnly ? 'Bookmark briefs you want to reference later' : search ? 'Try a different search term' : 'Generate your first brief to get started'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          <AnimatePresence initial={false}>
+            {briefs.map((brief, idx) => (
+              <motion.div
+                key={brief.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -16, height: 0 }}
+                transition={{ duration: 0.22, delay: idx < 10 ? idx * 0.025 : 0 }}
+                onClick={() => navigate(`/brief/${brief.id}`)}
+                className="group bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl px-5 py-4 cursor-pointer hover:border-accent/20 transition-all flex flex-col sm:flex-row gap-4 justify-between squircle"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h3 className="font-display font-semibold text-base text-tx-primary-light dark:text-tx-primary truncate group-hover:text-accent transition-colors">
+                      {brief.company_name}
+                    </h3>
+                    {brief.saved && <Bookmark className="w-3.5 h-3.5 text-accent fill-accent shrink-0" />}
+                  </div>
+                  {brief.preview && (
+                    <p className="text-sm text-tx-secondary line-clamp-2 leading-relaxed pr-4">{brief.preview}</p>
+                  )}
+                </div>
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-tx-tertiary">
+                    <Clock className="w-3 h-3" />
+                    {new Date(brief.created_at).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-wider bg-surface-raised-light dark:bg-surface-raised border border-border px-2 py-0.5 rounded-full font-medium text-tx-secondary">
+                      {brief.length_used}
+                    </span>
+                    <button
+                      onClick={(e) => deleteBrief(e, brief.id)}
+                      className="p-1.5 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete brief"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <ChevronRight className="w-4 h-4 text-tx-tertiary transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {briefs.length < total && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full py-3.5 text-sm font-medium text-tx-secondary hover:text-accent border border-dashed border-border dark:border-[rgba(255,255,255,0.06)] hover:border-accent/40 rounded-2xl transition-all mt-2 disabled:opacity-50"
+            >
+              {loadingMore ? 'Loading…' : `Load more (${total - briefs.length} remaining)`}
+            </button>
+          )}
+        </div>
+      )}
+    </Layout>
+  )
 }

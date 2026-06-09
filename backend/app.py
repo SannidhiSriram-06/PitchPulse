@@ -1,943 +1,906 @@
 import os
 import json
+import time
 import secrets
 import re
-from datetime import datetime, UTC, timedelta
-
+import unicodedata
+from datetime import datetime, timezone, timedelta
+from functools import wraps, lru_cache
+import jwt
+import requests
 from flask import Flask, request, jsonify, g, current_app
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_talisman import Talisman
-
-limiter = Limiter(key_func=get_remote_address)
-
 from config import Config
-from database import db, init_db
-from auth import (
-    require_auth,
-    validate_email,
-    validate_password,
-    sanitize_company_name,
-    hash_password,
-    check_password,
-    generate_token,
-)
+from database import init_db, db
+from models import User, Brief, Watchlist, ScheduledBrief
+from agents import run_brief
+from scheduler import check_and_run_due_briefs
+import tools
 
 
-# ── App factory ───────────────────────────────────────────────────────────────
+# ── JWKS caching ──────────────────────────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def _get_clerk_jwks():
+    """Fetch and cache Clerk's JWKS public keys. Cached for the process lifetime."""
+    resp = requests.get(Config.CLERK_JWKS_URL, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _verify_clerk_token(token):
+    """
+    Verify a Clerk-issued RS256 JWT.
+    Falls back to no-signature-check when CLERK_JWKS_URL is not configured
+    (development only — never acceptable in production).
+    """
+    if not Config.CLERK_JWKS_URL:
+        # ⚠️  DEV FALLBACK — set CLERK_JWKS_URL in production
+        decoded = jwt.decode(token, options={"verify_signature": False}, algorithms=["RS256"])
+        return decoded
+
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+
+        jwks = _get_clerk_jwks()
+        key_data = None
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
+                key_data = key
+                break
+
+        if not key_data:
+            # Key not found — JWKS may have rotated; bust cache and retry once
+            _get_clerk_jwks.cache_clear()
+            jwks = _get_clerk_jwks()
+            for key in jwks.get("keys", []):
+                if key.get("kid") == kid:
+                    key_data = key
+                    break
+
+        if not key_data:
+            raise Exception("Public key not found in JWKS")
+
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key_data))
+        decoded = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            options={"verify_exp": True}
+        )
+        return decoded
+
+    except Exception as e:
+        raise Exception(f"Token verification failed: {e}")
+
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(Config)
+    Config.validate()
 
-    Talisman(app, force_https=False, content_security_policy=False, frame_options="DENY")
-    CORS(app, origins=os.getenv("FRONTEND_URL", "*"))
-    limiter.init_app(app)
+    origins = Config.FRONTEND_URL if os.getenv("FLASK_ENV", "development") == "production" else "*"
+    CORS(app, origins=origins)
 
-    db.init_app(app)  # ← only here, NOT inside init_db()
+    init_db(app)
 
-    with app.app_context():
-        init_db(app)  # ← this now only does import models + create_all()
+    # ── Rate limiting ──────────────────────────────────────────────────────────
 
-    _register_routes(app)
-
-    return app
-
-# ── Rate limiting helper ──────────────────────────────────────────────────────
-
-FREE_TIER_LIMIT = 3  # briefs per hour for free users
-
-
-def _check_and_increment_rate_limit(user):
-    """
-    Checks if the user has exceeded their hourly brief limit.
-    If the window has expired (>60 min), resets the counter.
-    If within the window and at/over limit, returns False.
-    Otherwise increments counter and returns True.
-
-    Returns (allowed: bool, briefs_remaining: int | None)
-    """
-    if user.tier == "pro":
-        return True, None, None  # pro users have no limit
-
-    now = datetime.now(UTC)
-
-    # If no window started yet, or window has expired (>60 min ago), reset
-    window = user.hour_window_start
-    if window and window.tzinfo is None:
-        window = window.replace(tzinfo=UTC)
-    if window is None or (now - window) > timedelta(hours=1):
-        user.hour_window_start = now
-        user.briefs_used_this_hour = 0
-
-    if user.briefs_used_this_hour >= FREE_TIER_LIMIT:
-        remaining = 0
-        window_start = user.hour_window_start
-        if window_start.tzinfo is None:
-            window_start = window_start.replace(tzinfo=UTC)
-        reset_in_minutes = max(1, int((window_start + timedelta(hours=1) - now).total_seconds() / 60))
-        return False, remaining, reset_in_minutes
-
-    user.briefs_used_this_hour += 1
-    db.session.commit()
-    remaining = FREE_TIER_LIMIT - user.briefs_used_this_hour
-    return True, remaining, None
-
-
-# ── Routes ────────────────────────────────────────────────────────────────────
-
-def _register_routes(app):
-
-    # ── Health ────────────────────────────────────────────────────────────────
-
-    @app.route("/api/health", methods=["GET"])
-    def health():
-        return jsonify({"status": "ok"})
-
-    # ── Auth: Register ────────────────────────────────────────────────────────
-
-    @app.route("/api/auth/register", methods=["POST"])
-    @limiter.limit("3 per minute", error_message="Too many attempts. Please wait a minute.")
-    def register():
+    def _check_and_increment_rate_limit(user):
         """
-        POST /api/auth/register
-        Body: { "email": "...", "password": "..." }
-        Returns: { "message": "Account created", "token": "..." }
+        Returns (can_run, reset_in_minutes, hour_window_start_iso).
+        Does NOT commit — caller must commit after a successful generation.
         """
-        from models import User
+        now = datetime.now(timezone.utc)
+        hour_window_start = user.hour_window_start
+        if hour_window_start and not hour_window_start.tzinfo:
+            hour_window_start = hour_window_start.replace(tzinfo=timezone.utc)
+        elif not hour_window_start:
+            hour_window_start = now
+            user.hour_window_start = now
 
-        data = request.get_json(silent=True) or {}
+        window_elapsed = now - hour_window_start
+        if window_elapsed.total_seconds() > 3600:
+            user.briefs_used_this_hour = 0
+            user.hour_window_start = now
+            hour_window_start = now
+            window_elapsed = timedelta(0)
 
-        # Validate email
-        email_raw = data.get("email", "")
-        valid, err = validate_email(email_raw)
-        if not valid:
-            return jsonify({"error": err}), 400
-        email = email_raw.strip().lower()
+        if user.tier == 'free' and user.briefs_used_this_hour >= 3:
+            reset_in_minutes = max(1, 60 - int(window_elapsed.total_seconds() / 60))
+            reset_at = (hour_window_start + timedelta(hours=1)).isoformat()
+            return False, reset_in_minutes, reset_at
 
-        # Validate password
-        password = data.get("password", "")
-        valid, err = validate_password(password)
-        if not valid:
-            return jsonify({"error": err}), 400
+        # Do NOT commit here — increment after successful generation
+        return True, None, hour_window_start.isoformat()
 
-        # Check duplicate
-        existing = User.query.filter_by(email=email).first()
-        if existing:
-            return jsonify({"error": "An account with this email already exists."}), 409
+    # ── Input sanitization ─────────────────────────────────────────────────────
 
-        # Create user
-        user = User(
-            email=email,
-            password_hash=hash_password(password),
-            tier="free",
-            briefs_used_this_hour=0,
-        )
-        db.session.add(user)
-        db.session.commit()
-
-        token = generate_token(user.id)
-        return jsonify({"message": "Account created", "token": token}), 201
-
-    # ── Auth: Login ───────────────────────────────────────────────────────────
-
-    @app.route("/api/auth/login", methods=["POST"])
-    @limiter.limit("5 per minute", error_message="Too many attempts. Please wait a minute.")
-    def login():
+    def _sanitize_company(name):
         """
-        POST /api/auth/login
-        Body: { "email": "...", "password": "..." }
-        Returns: { "token": "...", "user": { email, tier, briefs_remaining_this_hour } }
+        Sanitize company name. Allows Unicode letters/numbers plus common
+        punctuation. Returns None for empty or clearly malicious input.
         """
-        from models import User
+        if not name or not name.strip():
+            return None
+        # Normalize unicode (NFC) and strip surrounding whitespace
+        name = unicodedata.normalize("NFC", name.strip())[:120]
+        # Allow Unicode word chars, spaces, and common company punctuation
+        # Reject if it contains SQL/script injection patterns
+        if re.search(r"[<>{}\[\];\"\\]", name):
+            return None
+        # Must contain at least one letter (Unicode)
+        if not re.search(r"[^\W\d_]", name, re.UNICODE):
+            return None
+        return name
 
-        data = request.get_json(silent=True) or {}
+    # ── Auth ──────────────────────────────────────────────────────────────────
 
-        email_raw = data.get("email", "")
-        valid, err = validate_email(email_raw)
-        if not valid:
-            return jsonify({"error": err}), 400
-        email = email_raw.strip().lower()
+    def _get_current_user():
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise Exception("Please login to continue")
 
-        password = data.get("password", "")
-        if not password:
-            return jsonify({"error": "Password is required."}), 400
-
-        user = User.query.filter_by(email=email).first()
-
-        # Use a constant-time check to prevent timing attacks
-        # If user doesn't exist, still run check_password on a dummy hash
-        # so the response time is similar either way
-        if user is None or not check_password(password, user.password_hash):
-            return jsonify({"error": "Invalid email or password."}), 401
-
-        token = generate_token(user.id)
-        return jsonify({
-            "token": token,
-            "user": user.to_dict(include_rate_info=True),
-        }), 200
-
-    # ── Auth: Me ──────────────────────────────────────────────────────────────
-
-    @app.route("/api/auth/me", methods=["GET"])
-    @require_auth
-    def me():
-        """
-        GET /api/auth/me
-        Protected. Returns current user's info.
-        """
-        return jsonify(g.current_user.to_dict(include_rate_info=True)), 200
-
-    # ── Auth: Change Password ─────────────────────────────────────────────────
-
-    @app.route("/api/auth/change-password", methods=["POST"])
-    @require_auth
-    def change_password():
-        """
-        POST /api/auth/change-password
-        Protected. Body: { "current_password": "...", "new_password": "..." }
-        """
-        data = request.get_json(silent=True) or {}
-        current_pw = data.get("current_password", "")
-        new_pw = data.get("new_password", "")
-
-        if not current_pw:
-            return jsonify({"error": "current_password is required."}), 400
-
-        if not check_password(current_pw, g.current_user.password_hash):
-            return jsonify({"error": "Current password is incorrect."}), 401
-
-        valid, err = validate_password(new_pw)
-        if not valid:
-            return jsonify({"error": err}), 400
-
-        g.current_user.password_hash = hash_password(new_pw)
-        db.session.commit()
-        return jsonify({"message": "Password updated successfully."}), 200
-
-    # ── Auth: Forgot Password ──────────────────────────────────────────────────
-
-    @app.route("/api/auth/forgot-password", methods=["POST"])
-    @limiter.limit("5 per minute", error_message="Too many attempts.")
-    def forgot_password():
-        from models import User
-        import resend
-        
-        data = request.get_json(silent=True) or {}
-        email_raw = data.get("email", "")
-        valid, err = validate_email(email_raw)
-        if not valid:
-            return jsonify({"error": err}), 400
-        email = email_raw.strip().lower()
-
-        user = User.query.filter_by(email=email).first()
-        success_message = "If that email exists, a reset link has been sent."
-        
-        if user:
-            token = secrets.token_urlsafe(32)
-            user.reset_token = token
-            user.reset_token_expiry = datetime.now(UTC) + timedelta(hours=1)
-            db.session.commit()
-            
-            try:
-                resend.api_key = current_app.config["RESEND_API_KEY"]
-                frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:5173")
-                reset_link = f"{frontend_url}/reset-password?token={token}"
-                resend.Emails.send({
-                    "from": "onboarding@resend.dev",
-                    "to": user.email,
-                    "subject": "Reset your PitchPulse password",
-                    "html": f"""
-                        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                          <h2 style="color: #0a0a0a;">Reset your password</h2>
-                          <p>Click the button below to reset your PitchPulse password. This link expires in 1 hour.</p>
-                          <a href="{reset_link}" style="display: inline-block; background: #C8FF00; color: #0a0a0a; font-weight: bold; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">Reset Password</a>
-                          <p style="color: #666; font-size: 14px;">If you didn't request this, ignore this email. Your password won't change.</p>
-                          <p style="color: #666; font-size: 14px;">Or copy this link: {reset_link}</p>
-                        </div>
-                    """
-                })
-            except Exception as e:
-                print(f"Failed to send reset email: {e}")
-                
-        return jsonify({"message": success_message}), 200
-
-    # ── Auth: Reset Password ──────────────────────────────────────────────────
-
-    @app.route("/api/auth/reset-password", methods=["POST"])
-    @limiter.limit("5 per minute", error_message="Too many attempts.")
-    def reset_password():
-        from models import User
-        
-        data = request.get_json(silent=True) or {}
-        token = data.get("token")
-        new_password = data.get("new_password")
-        
-        if not token or not new_password:
-            return jsonify({"error": "Token and new password are required."}), 400
-            
-        user = User.query.filter_by(reset_token=token).first()
-        if not user:
-            return jsonify({"error": "Invalid or expired reset link."}), 400
-            
-        expiry = user.reset_token_expiry
-        if expiry and expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=UTC)
-            
-        if not expiry or expiry < datetime.now(UTC):
-            return jsonify({"error": "Reset link has expired. Please request a new one."}), 400
-            
-        valid, err = validate_password(new_password)
-        if not valid:
-            return jsonify({"error": err}), 400
-            
-        user.password_hash = hash_password(new_password)
-        user.reset_token = None
-        user.reset_token_expiry = None
-        db.session.commit()
-        
-        return jsonify({"message": "Password reset successfully. You can now log in."}), 200
-
-    # ── Auth: Delete Account ──────────────────────────────────────────────────
-
-    @app.route("/api/auth/account", methods=["DELETE"])
-    @require_auth
-    def delete_account():
-        """
-        DELETE /api/auth/account
-        Protected. Deletes the user and all their briefs (cascade).
-        """
-        user = g.current_user
-        db.session.delete(user)
-        db.session.commit()
-        return jsonify({"message": "Account deleted."}), 200
-
-    @app.route("/api/user/preferences", methods=["GET", "PATCH"])
-    @require_auth
-    def update_preferences():
-        if request.method == 'GET':
-            user = g.current_user
-            try:
-                prefs = json.loads(user.preferences) if user.preferences else {}
-            except Exception:
-                prefs = {}
-            return jsonify({'preferences': prefs}), 200
-
-        data = request.get_json() or {}
-        user = g.current_user
+        token = auth_header.split(" ")[1]
         try:
-            existing = json.loads(user.preferences) if user.preferences else {}
-        except Exception:
-            existing = {}
-        allowed = {'default_length', 'default_view', 'show_watchlist', 'show_sources', 'theme'}
-        for key in allowed:
-            if key in data:
-                existing[key] = data[key]
-        user.preferences = json.dumps(existing)
-        db.session.commit()
-        return jsonify({'message': 'Preferences updated.', 'preferences': existing}), 200
+            decoded = _verify_clerk_token(token)
+            clerk_user_id = decoded.get("sub")
+            email = decoded.get("email")
+            if not clerk_user_id:
+                raise Exception("Please login to continue")
 
-    # ── Generate Brief ────────────────────────────────────────────────────────
+            user = User.query.filter_by(clerk_user_id=clerk_user_id).first()
+            is_new = False
+            if not user:
+                email = email or f"{clerk_user_id}@placeholder.com"
+                user = User(clerk_user_id=clerk_user_id, email=email)
+                db.session.add(user)
+                db.session.commit()
+                is_new = True
 
-    @app.route("/api/brief", methods=["POST"])
+            if is_new:
+                # Fire-and-forget welcome email (non-blocking)
+                try:
+                    from email_service import send_welcome_email
+                    send_welcome_email(user.email, user.display_name)
+                except Exception as e:
+                    print(f"[PitchPulse] Welcome email failed (non-fatal): {e}")
+
+            return user
+        except Exception as e:
+            raise Exception("Please login to continue")
+
+    def require_auth(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            try:
+                user = _get_current_user()
+            except Exception as e:
+                return jsonify({"error": str(e)}), 401
+            g.current_user = user
+            return f(*args, **kwargs)
+        return decorated
+
+    # ── Routes ────────────────────────────────────────────────────────────────
+
+    @app.route('/api/health', methods=['GET'])
+    def health():
+        return jsonify({
+            "status": "ok",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "2.1"
+        })
+
+    @app.route('/api/stock', methods=['GET'])
+    @require_auth
+    def get_stock_data():
+        company_name = request.args.get('company')
+        if not company_name:
+            return jsonify({"error": "company query parameter is required"}), 400
+
+        # Hardcoded ticker map — avoids Yahoo Finance lookup failures for common companies
+        _TICKER_MAP = {
+            "nvidia": "NVDA", "apple": "AAPL", "microsoft": "MSFT", "google": "GOOGL",
+            "alphabet": "GOOGL", "amazon": "AMZN", "meta": "META", "facebook": "META",
+            "tesla": "TSLA", "netflix": "NFLX", "salesforce": "CRM", "adobe": "ADBE",
+            "oracle": "ORCL", "intel": "INTC", "amd": "AMD", "qualcomm": "QCOM",
+            "broadcom": "AVGO", "tsmc": "TSM", "ibm": "IBM", "cisco": "CSCO",
+            "palantir": "PLTR", "snowflake": "SNOW", "uber": "UBER", "lyft": "LYFT",
+            "airbnb": "ABNB", "doordash": "DASH", "shopify": "SHOP", "paypal": "PYPL",
+            "spotify": "SPOT", "zoom": "ZM", "servicenow": "NOW", "workday": "WDAY",
+            "hubspot": "HUBS", "twilio": "TWLO", "coinbase": "COIN", "robinhood": "HOOD",
+            "jpmorgan": "JPM", "jp morgan": "JPM", "goldman sachs": "GS",
+            "bank of america": "BAC", "wells fargo": "WFC", "boeing": "BA",
+            "ford": "F", "general motors": "GM", "walmart": "WMT", "target": "TGT",
+            "costco": "COST", "nike": "NKE", "disney": "DIS", "pfizer": "PFE",
+            "moderna": "MRNA", "infosys": "INFY", "tata consultancy": "TCS.NS",
+            "wipro": "WIT", "hcl technologies": "HCLTECH.NS", "reliance": "RELIANCE.NS",
+        }
+        _PRIVATE = {"openai", "anthropic", "stripe", "spacex", "databricks", "bytedance"}
+
+        try:
+            import yfinance as yf
+            import httpx
+
+            key = company_name.strip().lower()
+
+            # 1. Check private-company list first
+            if key in _PRIVATE:
+                return jsonify({"error": f"{company_name} is a private company — no public stock data"}), 404
+
+            # 2. Hardcoded map for the most common names (instant)
+            ticker_symbol = _TICKER_MAP.get(key)
+
+            # 3. yfinance built-in Search — handles Yahoo auth/cookies automatically
+            if not ticker_symbol:
+                try:
+                    search = yf.Search(company_name, max_results=5, enable_fuzzy_query=True)
+                    for q in (search.quotes or []):
+                        # Prefer US equity, skip ETFs/funds/indices
+                        if q.get("quoteType") == "EQUITY" and "." not in q.get("symbol", "."):
+                            ticker_symbol = q["symbol"]
+                            break
+                    # Fallback: take first equity of any exchange
+                    if not ticker_symbol:
+                        for q in (search.quotes or []):
+                            if q.get("quoteType") == "EQUITY":
+                                ticker_symbol = q["symbol"]
+                                break
+                except Exception as search_err:
+                    print(f"[PitchPulse] yf.Search failed: {search_err}")
+
+            # 4. Raw Yahoo Finance API fallback (query1 → query2)
+            if not ticker_symbol:
+                for host in ["query1", "query2"]:
+                    try:
+                        headers = {
+                            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                            "Accept": "application/json, */*",
+                            "Accept-Language": "en-US,en;q=0.9",
+                            "Referer": "https://finance.yahoo.com/",
+                        }
+                        search_url = (
+                            f"https://{host}.finance.yahoo.com/v1/finance/search"
+                            f"?q={httpx.utils.quote(company_name)}&quotesCount=5&newsCount=0"
+                        )
+                        r = httpx.get(search_url, headers=headers, timeout=8.0)
+                        if r.status_code == 200:
+                            for q in r.json().get("quotes", []):
+                                if q.get("quoteType") == "EQUITY":
+                                    ticker_symbol = q["symbol"]
+                                    break
+                        if ticker_symbol:
+                            break
+                    except Exception:
+                        continue
+
+            if not ticker_symbol:
+                return jsonify({"error": f"No public stock ticker found for '{company_name}'. Try searching by ticker symbol instead (e.g. 'TXN' for Texas Instruments)."}), 404
+
+            ticker = yf.Ticker(ticker_symbol)
+            hist = ticker.history(period="1mo")
+            if hist.empty:
+                return jsonify({"error": "No historical stock data available"}), 404
+
+            points = []
+            for date, row in hist.iterrows():
+                close_val = row.get("Close")
+                if close_val is not None and not (isinstance(close_val, float) and close_val != close_val):
+                    points.append({
+                        "date": date.strftime("%Y-%m-%d"),
+                        "close": round(float(close_val), 2)
+                    })
+
+            # Guard against empty points (NaN-only history)
+            if not points:
+                return jsonify({"error": "No valid historical stock data available"}), 404
+
+            info = {}
+            try:
+                ticker_info = ticker.info
+                current_price = ticker_info.get("currentPrice") or points[-1]["close"]
+                change_pct = ticker_info.get("regularMarketChangePercent") or (
+                    (points[-1]["close"] - points[0]["close"]) / points[0]["close"] * 100
+                )
+                info = {
+                    "symbol": ticker_symbol,
+                    "company_name": ticker_info.get("longName") or ticker_info.get("shortName") or company_name,
+                    "currency": ticker_info.get("currency") or "USD",
+                    "current_price": round(float(current_price), 2),
+                    "change_percent": round(float(change_pct), 2)
+                }
+            except Exception:
+                info = {
+                    "symbol": ticker_symbol,
+                    "company_name": company_name,
+                    "currency": "USD",
+                    "current_price": points[-1]["close"],
+                    "change_percent": round(
+                        (points[-1]["close"] - points[0]["close"]) / points[0]["close"] * 100, 2
+                    )
+                }
+
+            return jsonify({
+                "ticker": ticker_symbol,
+                "info": info,
+                "history": points
+            })
+
+        except Exception as e:
+            print(f"Error fetching stock data: {e}")
+            return jsonify({"error": f"Failed to fetch stock data: {str(e)}"}), 500
+
+    @app.route('/api/extract-pdf', methods=['POST'])
+    @require_auth
+    def extract_pdf():
+        import io
+        # Debug: log what files/form arrived
+        print(f"[PDF] files keys: {list(request.files.keys())}, form keys: {list(request.form.keys())}, content_type: {request.content_type}")
+
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file received — ensure multipart/form-data with field name "file"'}), 400
+
+        file = request.files['file']
+        filename = (file.filename or '').lower()
+        if not filename.endswith('.pdf'):
+            return jsonify({'error': f'Only PDF files are supported (got: {file.filename})'}), 400
+
+        # Read into memory first — Werkzeug FileStorage streams can confuse PyPDF2
+        raw = file.read()
+        if len(raw) > 5 * 1024 * 1024:
+            return jsonify({'error': 'File too large (max 5MB)'}), 400
+        if len(raw) == 0:
+            return jsonify({'error': 'Empty file received'}), 400
+
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(raw))
+            text_parts = []
+            for page in reader.pages[:30]:
+                t = page.extract_text()
+                if t:
+                    text_parts.append(t)
+            text = '\n'.join(text_parts).strip()
+            print(f"[PDF] Extracted {len(text)} chars from {len(reader.pages)} pages")
+            if not text:
+                return jsonify({'error': 'Could not extract text — PDF may be scanned or image-only'}), 400
+            return jsonify({'text': text[:8000], 'pages': len(reader.pages)})
+        except ImportError:
+            return jsonify({'error': 'PyPDF2 not installed on server — run: pip install PyPDF2'}), 501
+        except Exception as e:
+            print(f"[PDF] Extraction error: {type(e).__name__}: {e}")
+            return jsonify({'error': f'Failed to parse PDF: {str(e)}'}), 500
+
+    @app.route('/api/brief', methods=['POST'])
     @require_auth
     def generate_brief():
-        """
-        POST /api/brief
-        Protected. Runs CrewAI agents and returns structured brief.
-        Body: { "company_name": "...", "length": "short|medium|long", "sections": [...] }
-        """
-        from models import Brief, Watchlist
-        from agents import run_brief
-
         user = g.current_user
 
-        # Rate limit check
-        allowed, remaining, reset_in_minutes = _check_and_increment_rate_limit(user)
-        if not allowed:
+        data = request.json or {}
+
+        # Accept either 'query' (new unified input) or legacy 'company_name'
+        raw_query = data.get("query") or data.get("company_name") or ""
+        if not raw_query.strip():
+            return jsonify({"error": "Please describe what you want to research"}), 400
+
+        from agents import extract_company_and_context
+        extracted_company, extracted_context = extract_company_and_context(raw_query)
+
+        company_name = _sanitize_company(extracted_company)
+        if not company_name:
+            # Last resort: try to use raw query as company name if short
+            words = raw_query.strip().split()
+            if len(words) <= 4:
+                company_name = _sanitize_company(raw_query.strip())
+        if not company_name:
+            return jsonify({"error": "Couldn't identify a company in your query. Try: 'Research [Company], I'm pitching...'"}), 400
+
+        length = data.get("length", user.default_brief_length or "medium")
+        if length not in ("short", "medium", "long"):
+            length = "medium"
+
+        sections = data.get("sections", user.default_sections)
+        if sections and isinstance(sections, str):
+            try:
+                sections = json.loads(sections)
+            except Exception:
+                pass
+
+        # user_context comes from: (1) query-extracted context, (2) user profile default, (3) empty
+        user_context = extracted_context or user.user_context or ""
+        pdf_context = (data.get("pdf_context") or "").strip()[:8000]
+        model_id = data.get("model_id")
+        deep_mind = bool(data.get("deep_mind", False))
+
+        # Check rate limit BEFORE running (but don't commit increment yet)
+        can_run, reset_in, hour_window_iso = _check_and_increment_rate_limit(user)
+        if not can_run:
             return jsonify({
-                "error": "Rate limit reached. Upgrade to Pro for unlimited briefs.",
-                "reset_in_minutes": reset_in_minutes
+                "error": "Hourly limit reached. Upgrade to Pro for unlimited briefs.",
+                "reset_in_minutes": reset_in,
+                "reset_at": hour_window_iso
             }), 429
 
-        data = request.get_json(silent=True) or {}
-
-        # Sanitize company_name
-        company_name_raw = data.get("company_name", "")
-        company_name, err = sanitize_company_name(company_name_raw)
-        if err:
-            return jsonify({"error": err}), 400
-
-        # Validate length
-        length = data.get("length", "medium")
-        if length not in ("short", "medium", "long"):
-            return jsonify({"error": "length must be 'short', 'medium', or 'long'."}), 400
-
-        # Validate sections
-        valid_sections = {"summary", "news", "financials", "social_sentiment", "talking_points", "watch_out_for"}
-        requested_sections = data.get("sections", list(valid_sections))
-        if not isinstance(requested_sections, list):
-            return jsonify({"error": "sections must be a list of strings."}), 400
-        requested_sections = [s for s in requested_sections if s in valid_sections]
-
-        custom_prompt = data.get("custom_prompt", "").strip()
-        if len(custom_prompt) > 500:
-            return jsonify({"error": "custom_prompt must be 500 characters or fewer."}), 400
-
-        if custom_prompt and "custom_focus" not in requested_sections:
-            requested_sections.append("custom_focus")
-
-        if not requested_sections:
-            return jsonify({"error": "No valid sections provided. Valid options: summary, news, financials, social_sentiment, talking_points, watch_out_for"}), 400
-
-
-
-        # Validate env vars before running agents
+        start_time = time.time()
         try:
-            Config.validate()
-        except EnvironmentError as e:
-            return jsonify({"error": str(e)}), 500
+            brief_dict, total_search_results = run_brief(
+                company_name, length, sections, user_context,
+                model_id=model_id, deep_mind=deep_mind,
+                full_query=raw_query, pdf_context=pdf_context
+            )
+            gen_time_ms = int((time.time() - start_time) * 1000)
 
-        # Run agents
-        import time
-        start = time.time()
-        try:
-            result = run_brief(company_name, length, requested_sections, custom_prompt)
+            if total_search_results == 0:
+                return jsonify({
+                    "error": "Couldn't find data on this company. Try a larger, publicly known company."
+                }), 400
+
+            limited_data = total_search_results < 3
+            brief_dict["generated_at"] = datetime.now(timezone.utc).isoformat()
+
+            sections_str = json.dumps(sections) if sections else None
+
+            brief = Brief(
+                user_id=user.id,
+                company_name=company_name,
+                brief_json=json.dumps(brief_dict),
+                length_used=length,
+                sections_used=sections_str,
+                generation_time_ms=gen_time_ms,
+                limited_data=limited_data
+            )
+            db.session.add(brief)
+
+            # Update watchlist last_briefed_at if applicable
+            watchlist_entry = Watchlist.query.filter_by(
+                user_id=user.id, company_name=company_name
+            ).first()
+            if watchlist_entry:
+                watchlist_entry.last_briefed_at = datetime.now(timezone.utc)
+
+            # ✅ Only increment rate limit counter on successful generation
+            user.briefs_used_this_hour += 1
+            if not user.hour_window_start:
+                user.hour_window_start = datetime.now(timezone.utc)
+
+            db.session.commit()
+
+            briefs_remaining = max(0, 3 - user.briefs_used_this_hour) if user.tier == 'free' else 999
+            # Calculate exact reset time for the frontend widget
+            hw = user.hour_window_start
+            if hw and not hw.tzinfo:
+                hw = hw.replace(tzinfo=timezone.utc)
+            reset_at = (hw + timedelta(hours=1)).isoformat() if hw else None
+
+            return jsonify({
+                "id": brief.id,
+                "company_name": brief.company_name,
+                "brief": brief_dict,
+                "limited_data": limited_data,
+                "generation_time_ms": gen_time_ms,
+                "briefs_remaining_this_hour": briefs_remaining,
+                "reset_at": reset_at
+            })
+
         except Exception as e:
-            return jsonify({"error": "Agent execution failed. Please try again.", "detail": str(e)}), 500
-        elapsed_ms = int((time.time() - start) * 1000)
+            print(f"Error generating brief: {e}")
+            return jsonify({"error": f"Generation failed: {str(e)}"}), 500
 
-        # Check for limited data
-        if not result or result.get("brief", {}).get("parse_error"):
-            return jsonify({"error": "We couldn't find enough data for this company. Try a different name or check spelling."}), 400
-
-        # Update watchlist last_briefed_at if company is on watchlist
-        wl_entry = Watchlist.query.filter_by(user_id=user.id, company_name=company_name).first()
-        if wl_entry:
-            wl_entry.last_briefed_at = datetime.now(UTC)
-
-        # Save brief to DB
-        sources = result.get("sources_used", [])
-        limited = result.get("limited_data", False)
-        brief_record = Brief(
-            user_id=user.id,
-            company_name=company_name,
-            length=length,
-            sections_requested=",".join(requested_sections),
-            brief_json=json.dumps(result.get("brief", {})),
-            sources_used=json.dumps(sources),
-            generation_time_ms=elapsed_ms,
-            limited_data=limited,
-            saved=False,
-            feedback_summary=None,
-            share_token=None,
-        )
-        db.session.add(brief_record)
-        db.session.commit()
-
-        return jsonify({
-            "brief": result.get("brief", {}),
-            "sources_used": sources,
-            "generation_time_ms": elapsed_ms,
-            "limited_data": limited,
-            "brief_id": brief_record.id,
-            "briefs_remaining_this_hour": remaining,
-        }), 200
-
-    # ── Generate Comparison Brief ─────────────────────────────────────────────
-
-    @app.route("/api/brief/compare", methods=["POST"])
+    @app.route('/api/briefs', methods=['GET'])
     @require_auth
-    def compare_brief():
-        from models import Brief
-        from agents import run_comparison
-
-        user = g.current_user
-
-        # Rate limit check (requires 2 briefs worth of limit)
-        allowed, remaining, reset_in_minutes = _check_and_increment_rate_limit(user)
-        if not allowed:
-            return jsonify({"error": "Rate limit reached. Upgrade to Pro for unlimited briefs.", "reset_in_minutes": reset_in_minutes}), 429
-            
-        allowed2, remaining2, reset_in_minutes2 = _check_and_increment_rate_limit(user)
-        if not allowed2:
-            return jsonify({"error": "Rate limit reached. Comparisons cost 2 briefs. Upgrade to Pro.", "reset_in_minutes": reset_in_minutes2}), 429
-
-        data = request.get_json(silent=True) or {}
-
-        company1_raw = data.get("company1", "")
-        company1, err = sanitize_company_name(company1_raw)
-        if err: return jsonify({"error": f"Company 1: {err}"}), 400
-
-        company2_raw = data.get("company2", "")
-        company2, err2 = sanitize_company_name(company2_raw)
-        if err2: return jsonify({"error": f"Company 2: {err2}"}), 400
-
-        length = data.get("length", "medium")
-        if length not in ("short", "medium", "long"):
-            return jsonify({"error": "length must be 'short', 'medium', or 'long'."}), 400
-
-        custom_prompt = data.get("custom_prompt", "").strip()
-        if len(custom_prompt) > 500:
-            return jsonify({"error": "custom_prompt must be 500 characters or fewer."}), 400
-
-        try:
-            Config.validate()
-        except EnvironmentError as e:
-            return jsonify({"error": str(e)}), 500
-
-        import time
-        start = time.time()
-        try:
-            result = run_comparison(company1, company2, length, custom_prompt)
-        except Exception as e:
-            return jsonify({"error": "Agent execution failed. Please try again.", "detail": str(e)}), 500
-        elapsed_ms = int((time.time() - start) * 1000)
-
-        if not result or result.get("brief", {}).get("parse_error"):
-            return jsonify({"error": "We couldn't find enough data. Try different names."}), 400
-
-        sources = result.get("sources_used", [])
-        limited = result.get("limited_data", False)
-        
-        company_name_combo = f"{company1} vs {company2}"
-        sections_str = "company1_summary,company2_summary,financial_comparison,market_position,recent_developments,strengths_weaknesses,recommendation"
-        
-        brief_record = Brief(
-            user_id=user.id,
-            company_name=company_name_combo,
-            length=length,
-            sections_requested=sections_str,
-            brief_json=json.dumps(result.get("brief", {})),
-            sources_used=json.dumps(sources),
-            generation_time_ms=elapsed_ms,
-            limited_data=limited,
-            saved=False,
-            feedback_summary=None,
-            share_token=None,
-        )
-        db.session.add(brief_record)
-        db.session.commit()
-
-        return jsonify({
-            "brief": result.get("brief", {}),
-            "sources_used": sources,
-            "generation_time_ms": elapsed_ms,
-            "limited_data": limited,
-            "brief_id": brief_record.id,
-            "briefs_remaining_this_hour": remaining2,
-        }), 200
-
-    # ── List Briefs ───────────────────────────────────────────────────────────
-
-    @app.route("/api/briefs", methods=["GET"])
-    @require_auth
-    def list_briefs():
-        """
-        GET /api/briefs
-        Protected. Returns user's briefs, newest first.
-        Optional query params:
-          ?search=infosys   — filter by company_name (case-insensitive contains)
-          ?saved=true       — only return saved briefs
-        """
-        from models import Brief
+    def get_briefs():
+        search = request.args.get('search', '')
+        saved_str = request.args.get('saved')
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        offset = request.args.get('offset', 0, type=int)
 
         query = Brief.query.filter_by(user_id=g.current_user.id)
-
-        search = request.args.get("search", "").strip()
         if search:
             query = query.filter(Brief.company_name.ilike(f"%{search}%"))
+        # Only apply saved filter when explicitly requested
+        if saved_str is not None and saved_str != '':
+            query = query.filter_by(saved=(saved_str.lower() == "true"))
 
-        saved_filter = request.args.get("saved", "").lower()
-        if saved_filter == "true":
-            query = query.filter_by(saved=True)
+        total = query.count()
+        briefs = query.order_by(Brief.created_at.desc()).limit(limit).offset(offset).all()
 
-        briefs = query.order_by(Brief.created_at.desc()).all()
-        return jsonify({"briefs": [b.to_dict() for b in briefs]}), 200
+        result = []
+        for b in briefs:
+            try:
+                b_json = json.loads(b.brief_json)
+                preview = b_json.get("summary", {}).get("content", "")[:120]
+            except Exception:
+                preview = ""
+            result.append({
+                "id": b.id,
+                "company_name": b.company_name,
+                "created_at": b.created_at.isoformat(),
+                "length_used": b.length_used,
+                "saved": b.saved,
+                "limited_data": b.limited_data,
+                "preview": preview
+            })
 
-    # ── Get Single Brief ──────────────────────────────────────────────────────
+        return jsonify({"briefs": result, "total": total})
 
     @app.route('/api/briefs/<int:brief_id>', methods=['GET'])
     @require_auth
     def get_brief(brief_id):
-        from models import Brief
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({'error': 'Brief not found'}), 404
-        return jsonify(brief.to_dict()), 200
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
-    # ── Toggle Save Brief ─────────────────────────────────────────────────────
+        return jsonify({
+            "id": brief.id,
+            "company_name": brief.company_name,
+            "brief": json.loads(brief.brief_json),
+            "length_used": brief.length_used,
+            "sections_used": json.loads(brief.sections_used) if brief.sections_used else None,
+            "saved": brief.saved,
+            "feedback": json.loads(brief.feedback) if brief.feedback else None,
+            "generation_time_ms": brief.generation_time_ms,
+            "limited_data": brief.limited_data,
+            "share_token": brief.share_token,
+            "created_at": brief.created_at.isoformat()
+        })
 
-    @app.route("/api/briefs/<int:brief_id>/save", methods=["PATCH"])
+    @app.route('/api/briefs/<int:brief_id>/save', methods=['PATCH'])
     @require_auth
     def toggle_save_brief(brief_id):
-        """
-        PATCH /api/briefs/:id/save
-        Protected. Toggles saved=True/False on a brief.
-        """
-        from models import Brief
-
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({"error": "Brief not found."}), 404
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
         brief.saved = not brief.saved
         db.session.commit()
-        return jsonify({"id": brief.id, "saved": brief.saved}), 200
+        return jsonify({"saved": brief.saved})
 
-    # ── Delete Brief ──────────────────────────────────────────────────────────
-
-    @app.route("/api/briefs/<int:brief_id>", methods=["DELETE"])
+    @app.route('/api/briefs/<int:brief_id>', methods=['DELETE'])
     @require_auth
     def delete_brief(brief_id):
-        """
-        DELETE /api/briefs/:id
-        Protected. Deletes one of the current user's briefs.
-        """
-        from models import Brief
-
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({"error": "Brief not found."}), 404
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
         db.session.delete(brief)
         db.session.commit()
-        return jsonify({"message": "Brief deleted."}), 200
+        return jsonify({"message": "Deleted"})
 
-    # ── Brief Feedback ────────────────────────────────────────────────────────
-
-    @app.route("/api/briefs/<int:brief_id>/feedback", methods=["POST"])
+    @app.route('/api/briefs/<int:brief_id>/feedback', methods=['POST'])
     @require_auth
-    def brief_feedback(brief_id):
-        """
-        POST /api/briefs/:id/feedback
-        Protected. Body: { "section": "news", "rating": "up" | "down" }
-        Stores/updates feedback for one section in feedback_summary JSON.
-        """
-        from models import Brief
+    def add_brief_feedback(brief_id):
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({"error": "Brief not found."}), 404
+        data = request.json or {}
+        section = data.get("section")
+        rating = data.get("rating")
 
-        data = request.get_json(silent=True) or {}
-        section = data.get("section", "").strip()
-        rating = data.get("rating", "").strip()
+        if not section or rating not in ('up', 'down', None):
+            return jsonify({"error": "section required; rating must be 'up', 'down', or null"}), 400
 
-        valid_sections = {"summary", "news", "financials", "social_sentiment", "talking_points", "watch_out_for"}
-        if section not in valid_sections:
-            return jsonify({"error": f"Invalid section. Must be one of: {', '.join(valid_sections)}"}), 400
-        if rating not in ("up", "down"):
-            return jsonify({"error": "rating must be 'up' or 'down'."}), 400
+        feedback_dict = {}
+        if brief.feedback:
+            try:
+                feedback_dict = json.loads(brief.feedback)
+            except Exception:
+                pass
 
-        # Load existing feedback (or empty dict), update, save back
-        feedback = json.loads(brief.feedback_summary) if brief.feedback_summary else {}
-        feedback[section] = rating
-        brief.feedback_summary = json.dumps(feedback)
+        if rating is None:
+            # Toggle off — remove feedback for this section
+            feedback_dict.pop(section, None)
+        else:
+            feedback_dict[section] = rating
+
+        brief.feedback = json.dumps(feedback_dict)
         db.session.commit()
+        return jsonify({"message": "Feedback recorded", "feedback": feedback_dict})
 
-        return jsonify({"brief_id": brief_id, "feedback": feedback}), 200
-
-    # ── Share: Generate Token ─────────────────────────────────────────────────
-
-    @app.route("/api/briefs/<int:brief_id>/share", methods=["GET", "POST"])
+    @app.route('/api/briefs/<int:brief_id>/share', methods=['POST'])
     @require_auth
-    def get_share_token(brief_id):
-        """
-        GET /api/briefs/:id/share
-        Protected. Generates (or returns existing) public share token for a brief.
-        Returns: { "share_url": "/api/share/<token>" }
-        """
-        from models import Brief
+    def share_brief(brief_id):
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({"error": "Brief not found."}), 404
-
-        # Generate a token if one doesn't exist yet
         if not brief.share_token:
             brief.share_token = secrets.token_urlsafe(32)
             db.session.commit()
 
         return jsonify({
-            "brief_id": brief_id,
-            "share_token": brief.share_token,
-            "share_url": f"/api/share/{brief.share_token}",
-        }), 200
+            "share_url": f"{Config.FRONTEND_URL}/brief/share/{brief.share_token}"
+        })
 
-    # ── Share: View Public Brief ──────────────────────────────────────────────
-
-    @app.route("/api/share/<share_token>", methods=["GET"])
-    def view_shared_brief(share_token):
-        """
-        GET /api/share/:share_token
-        PUBLIC — no auth needed.
-        Returns the brief JSON for the given token.
-        """
-        from models import Brief
-
-        brief = Brief.query.filter_by(share_token=share_token).first()
-        if not brief:
-            return jsonify({"error": "Shared brief not found or link has expired."}), 404
-
+    @app.route('/api/share/<token>', methods=['GET'])
+    def get_shared_brief(token):
+        brief = Brief.query.filter_by(share_token=token).first_or_404()
         return jsonify({
             "company_name": brief.company_name,
-            "brief": json.loads(brief.brief_json) if brief.brief_json else {},
-            "sources_used": json.loads(brief.sources_used) if brief.sources_used else [],
-            "created_at": brief.created_at.isoformat() if brief.created_at else None,
-        }), 200
+            "brief": json.loads(brief.brief_json),
+            "generation_time_ms": brief.generation_time_ms,
+            "created_at": brief.created_at.isoformat()
+        })
 
-    # ── Schedule Brief ────────────────────────────────────────────────────────
-
-    @app.route("/api/briefs/<int:brief_id>/schedule", methods=["POST"])
-    @require_auth
-    def schedule_brief(brief_id):
-        from models import Brief
-        import resend
-        
-        data = request.get_json(silent=True) or {}
-        meeting_time_str = data.get("meeting_time")
-        meeting_email = data.get("meeting_email") or g.current_user.email
-        
-        if not meeting_time_str:
-            return jsonify({"error": "meeting_time is required"}), 400
-            
-        try:
-            meeting_time = datetime.fromisoformat(meeting_time_str)
-            if meeting_time.tzinfo is None:
-                meeting_time = meeting_time.replace(tzinfo=UTC)
-        except ValueError:
-            return jsonify({"error": "Invalid meeting_time format"}), 400
-            
-        if meeting_time < datetime.now(UTC):
-            return jsonify({"error": "meeting_time must be in the future"}), 400
-            
-        brief = Brief.query.filter_by(id=brief_id, user_id=g.current_user.id).first()
-        if not brief:
-            return jsonify({"error": "Brief not found"}), 404
-            
-        brief.scheduled_meeting_time = meeting_time
-        db.session.commit()
-        
-        # Format brief as HTML email
-        brief_data = json.loads(brief.brief_json) if brief.brief_json else {}
-        html_content = f"<h2>PitchPulse Brief for {brief.company_name}</h2>"
-        for section, content in brief_data.items():
-            if section not in ["confidence_score", "parse_error"]:
-                html_content += f'<div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px;"><h3>{section.replace("_", " ").title()}</h3><p>{content}</p></div>'
-        
-        confidence = brief_data.get("confidence_score")
-        if confidence:
-            html_content += f'<div style="margin-top: 10px;"><strong>Confidence Score:</strong> <span style="background: #eee; padding: 2px 6px; border-radius: 10px;">{confidence}/100</span></div>'
-            
-        sources = json.loads(brief.sources_used) if brief.sources_used else []
-        if sources:
-            html_content += "<h3>Sources</h3><ul>"
-            for source in sources:
-                url = source if isinstance(source, str) else source.get("url", "#")
-                title = source if isinstance(source, str) else source.get("title", url)
-                html_content += f'<li><a href="{url}">{title}</a></li>'
-            html_content += "</ul>"
-            
-        try:
-            resend.api_key = current_app.config["RESEND_API_KEY"]
-            resend.Emails.send({
-                "from": "onboarding@resend.dev",
-                "to": meeting_email,
-                "subject": f"PitchPulse Brief: {brief.company_name} — Your meeting is coming up",
-                "html": html_content
-            })
-        except Exception as e:
-            print(f"Failed to send scheduled brief email: {e}")
-            return jsonify({"error": "Failed to send email"}), 500
-            
-        return jsonify({"message": f"Brief sent to {meeting_email}"}), 200
-
-    # ── Diff Briefs ───────────────────────────────────────────────────────────
-
-    @app.route("/api/briefs/company/<company_name>/diff", methods=["GET"])
-    @require_auth
-    def diff_briefs(company_name):
-        from models import Brief
-        
-        briefs = Brief.query.filter_by(user_id=g.current_user.id, company_name=company_name).order_by(Brief.created_at.desc()).limit(2).all()
-        
-        if len(briefs) < 2:
-            return jsonify({"has_diff": False, "message": "Generate at least 2 briefs for this company to see what changed"}), 200
-            
-        new_brief = briefs[0]
-        old_brief = briefs[1]
-        
-        new_data = json.loads(new_brief.brief_json) if new_brief.brief_json else {}
-        old_data = json.loads(old_brief.brief_json) if old_brief.brief_json else {}
-        
-        def diff_section(section_name):
-            new_text = new_data.get(section_name, "")
-            old_text = old_data.get(section_name, "")
-            
-            if isinstance(new_text, dict):
-                new_text = new_text.get("content", "")
-            elif isinstance(new_text, list):
-                new_text = " ".join([str(item) for item in new_text])
-            if isinstance(old_text, dict):
-                old_text = old_text.get("content", "")
-            elif isinstance(old_text, list):
-                old_text = " ".join([str(item) for item in old_text])
-                
-            new_sentences = set([s.strip() for s in str(new_text).split(". ") if s.strip()])
-            old_sentences = set([s.strip() for s in str(old_text).split(". ") if s.strip()])
-            
-            added = list(new_sentences - old_sentences)
-            removed = list(old_sentences - new_sentences)
-            return {"added": added, "removed": removed}
-            
-        return jsonify({
-            "has_diff": True,
-            "company_name": company_name,
-            "compared_dates": [
-                new_brief.created_at.isoformat() if new_brief.created_at else None,
-                old_brief.created_at.isoformat() if old_brief.created_at else None
-            ],
-            "changes": {
-                "summary": diff_section("summary"),
-                "news": diff_section("news")
-            }
-        }), 200
-
-    # ── Watchlist: Get ────────────────────────────────────────────────────────
-
-    @app.route("/api/watchlist", methods=["GET"])
+    @app.route('/api/watchlist', methods=['GET'])
     @require_auth
     def get_watchlist():
-        """
-        GET /api/watchlist
-        Protected. Returns user's watchlist sorted by most recently added.
-        """
-        from models import Watchlist
+        items = Watchlist.query.filter_by(
+            user_id=g.current_user.id
+        ).order_by(Watchlist.added_at.desc()).all()
+        return jsonify({"watchlist": [{
+            "id": i.id,
+            "company_name": i.company_name,
+            "folder_tag": i.folder_tag,
+            "user_notes": i.user_notes,
+            "default_length": i.default_length,
+            "last_briefed_at": i.last_briefed_at.isoformat() if i.last_briefed_at else None,
+            "added_at": i.added_at.isoformat()
+        } for i in items]})
 
-        entries = Watchlist.query.filter_by(user_id=g.current_user.id)\
-            .order_by(Watchlist.added_at.desc()).all()
-        return jsonify({"watchlist": [e.to_dict() for e in entries]}), 200
-
-    @app.route("/api/watchlist/alerts", methods=["GET"])
-    @require_auth
-    def get_watchlist_alerts():
-        from models import Watchlist
-        from tools import company_web_search
-
-        entries = Watchlist.query.filter_by(user_id=g.current_user.id).limit(5).all()
-        alerts = []
-        for entry in entries:
-            try:
-                results = company_web_search(entry.company_name)
-                res_list = results.get("results", []) if isinstance(results, dict) else []
-                has_recent = any("2025" in str(r) or "2026" in str(r) for r in res_list)
-                headline = res_list[0].get("title", "")[:80] if res_list and isinstance(res_list[0], dict) else ""
-                alerts.append({
-                    "company_name": entry.company_name,
-                    "has_recent_news": bool(has_recent),
-                    "headline": headline,
-                })
-            except Exception:
-                alerts.append({
-                    "company_name": entry.company_name,
-                    "has_recent_news": False,
-                    "headline": "",
-                })
-        return jsonify({"alerts": alerts}), 200
-
-    @app.route("/api/watchlist/notes/<company_name>", methods=["GET"])
-    @require_auth
-    def get_watchlist_note(company_name):
-        from models import WatchlistNote
-
-        note = WatchlistNote.query.filter_by(
-            user_id=g.current_user.id,
-            company_name=company_name,
-        ).first()
-        return jsonify({"note_text": note.note_text if note else ""}), 200
-
-    @app.route("/api/watchlist/notes/<company_name>", methods=["POST"])
-    @require_auth
-    def save_watchlist_note(company_name):
-        from models import WatchlistNote
-
-        data = request.get_json(silent=True) or {}
-        note_text = data.get("note_text", "")[:1000]
-        note = WatchlistNote.query.filter_by(
-            user_id=g.current_user.id,
-            company_name=company_name,
-        ).first()
-
-        if note:
-            note.note_text = note_text
-            note.updated_at = datetime.now(UTC)
-        else:
-            note = WatchlistNote(
-                user_id=g.current_user.id,
-                company_name=company_name,
-                note_text=note_text,
-            )
-            db.session.add(note)
-
-        db.session.commit()
-        return jsonify({"message": "Saved"}), 200
-
-    # ── Watchlist: Add ────────────────────────────────────────────────────────
-
-    @app.route("/api/watchlist", methods=["POST"])
+    @app.route('/api/watchlist', methods=['POST'])
     @require_auth
     def add_to_watchlist():
-        """
-        POST /api/watchlist
-        Protected. Body: { "company_name": "..." }
-        """
-        from models import Watchlist
+        count = Watchlist.query.filter_by(user_id=g.current_user.id).count()
+        if count >= 50:
+            return jsonify({"error": "Watchlist limit (50) reached"}), 400
 
-        data = request.get_json(silent=True) or {}
-        company_name_raw = data.get("company_name", "")
-        company_name, err = sanitize_company_name(company_name_raw)
-        if err:
-            return jsonify({"error": err}), 400
+        data = request.json or {}
+        raw_company_name = data.get("company_name")
+        if not raw_company_name:
+            return jsonify({"error": "company_name required"}), 400
 
-        # Check for duplicate
+        company_name = _sanitize_company(raw_company_name)
+        if not company_name:
+            return jsonify({"error": "Invalid company name"}), 400
+
         existing = Watchlist.query.filter_by(
-            user_id=g.current_user.id,
-            company_name=company_name
+            user_id=g.current_user.id, company_name=company_name
         ).first()
         if existing:
-            return jsonify({"error": f"{company_name} is already on your watchlist."}), 409
+            return jsonify({"error": "Already in watchlist", "id": existing.id}), 409
 
-        entry = Watchlist(user_id=g.current_user.id, company_name=company_name)
-        db.session.add(entry)
+        item = Watchlist(
+            user_id=g.current_user.id,
+            company_name=company_name,
+            folder_tag=data.get("folder_tag"),
+            user_notes=data.get("user_notes")
+        )
+        db.session.add(item)
         db.session.commit()
-        return jsonify(entry.to_dict()), 201
+        return jsonify({"id": item.id})
 
-    # ── Watchlist: Remove ─────────────────────────────────────────────────────
-
-    @app.route("/api/watchlist/<int:entry_id>", methods=["DELETE"])
+    @app.route('/api/watchlist/<int:item_id>', methods=['DELETE'])
     @require_auth
-    def remove_from_watchlist(entry_id):
-        """
-        DELETE /api/watchlist/:id
-        Protected. Removes one entry from the watchlist.
-        """
-        from models import Watchlist
+    def remove_from_watchlist(item_id):
+        item = Watchlist.query.get_or_404(item_id)
+        if item.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
 
-        entry = Watchlist.query.filter_by(id=entry_id, user_id=g.current_user.id).first()
-        if not entry:
-            return jsonify({"error": "Watchlist entry not found."}), 404
-
-        db.session.delete(entry)
+        db.session.delete(item)
         db.session.commit()
-        return jsonify({"message": "Removed from watchlist."}), 200
+        return jsonify({"message": "Removed"})
+
+    @app.route('/api/watchlist/<int:item_id>', methods=['PATCH'])
+    @require_auth
+    def update_watchlist_item(item_id):
+        item = Watchlist.query.get_or_404(item_id)
+        if item.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        data = request.json or {}
+        if "folder_tag" in data:
+            item.folder_tag = data["folder_tag"]
+        if "user_notes" in data:
+            item.user_notes = data["user_notes"]
+        if "default_length" in data:
+            item.default_length = data["default_length"]
+        if "default_sections" in data:
+            item.default_sections = json.dumps(data["default_sections"])
+
+        db.session.commit()
+        return jsonify({"message": "Updated"})
+
+    @app.route('/api/scheduled', methods=['GET'])
+    @require_auth
+    def get_scheduled():
+        items = ScheduledBrief.query.filter_by(user_id=g.current_user.id).order_by(
+            ScheduledBrief.scheduled_for.asc()
+        ).all()
+        return jsonify([{
+            "id": i.id,
+            "company_name": i.company_name,
+            "scheduled_for": i.scheduled_for.isoformat(),
+            "recurring": i.recurring,
+            "length": i.length,
+            "status": i.status,
+            "last_run_at": i.last_run_at.isoformat() if i.last_run_at else None,
+            "brief_id": i.brief_id
+        } for i in items])
+
+    @app.route('/api/scheduled', methods=['POST'])
+    @require_auth
+    def add_scheduled():
+        data = request.json or {}
+        raw_dt = data.get("scheduled_for")
+        if not raw_dt:
+            return jsonify({"error": "scheduled_for is required"}), 400
+
+        try:
+            # Robust ISO parsing — handle Z suffix and various offset formats
+            raw_dt = str(raw_dt).strip()
+            raw_dt = raw_dt.replace("Z", "+00:00")
+            scheduled_for = datetime.fromisoformat(raw_dt)
+        except ValueError:
+            return jsonify({
+                "error": "Invalid scheduled_for format. Use ISO 8601 (e.g. 2026-06-08T14:30:00Z)"
+            }), 400
+
+        # Normalise to UTC
+        if scheduled_for.tzinfo:
+            scheduled_for = scheduled_for.astimezone(timezone.utc).replace(tzinfo=timezone.utc)
+        else:
+            scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
+
+        if scheduled_for <= datetime.now(timezone.utc):
+            return jsonify({"error": "scheduled_for must be in the future"}), 400
+
+        recurring = data.get("recurring")
+        if recurring not in [None, "daily", "weekly"]:
+            return jsonify({"error": "Invalid recurring value. Must be null, 'daily', or 'weekly'"}), 400
+
+        company_name = _sanitize_company(data.get("company_name", ""))
+        if not company_name:
+            return jsonify({"error": "Invalid company_name"}), 400
+
+        sections = data.get("sections")
+        sb = ScheduledBrief(
+            user_id=g.current_user.id,
+            company_name=company_name,
+            scheduled_for=scheduled_for,
+            recurring=recurring,
+            length=data.get("length", "medium"),
+            sections=json.dumps(sections) if sections else None
+        )
+        db.session.add(sb)
+        db.session.commit()
+        return jsonify({"id": sb.id}), 201
+
+    @app.route('/api/scheduled/<int:item_id>', methods=['DELETE'])
+    @require_auth
+    def remove_scheduled(item_id):
+        item = ScheduledBrief.query.get_or_404(item_id)
+        if item.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        # Allow deleting any status — completed items are just records
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({"message": "Deleted"})
+
+    @app.route('/api/cron/process-scheduled', methods=['POST'])
+    def process_scheduled():
+        secret = request.headers.get("X-Cron-Secret")
+        if not secret or secret != Config.CRON_SECRET:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        processed = check_and_run_due_briefs(current_app._get_current_object())
+        return jsonify({
+            "processed": processed,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+    @app.route('/api/usage', methods=['GET'])
+    @require_auth
+    def get_usage():
+        """Lightweight endpoint for real-time rate-limit polling (no DB writes)."""
+        u = g.current_user
+        now = datetime.now(timezone.utc)
+
+        hw = u.hour_window_start
+        if hw and not hw.tzinfo:
+            hw = hw.replace(tzinfo=timezone.utc)
+        elif not hw:
+            hw = now
+
+        # If the window already expired, compute as if it reset
+        window_elapsed = (now - hw).total_seconds()
+        if window_elapsed > 3600:
+            # Window has passed — virtually reset (DB will catch up on next generate)
+            used = 0
+            reset_at = (now + timedelta(hours=1)).isoformat()
+        else:
+            used = u.briefs_used_this_hour or 0
+            reset_at = (hw + timedelta(hours=1)).isoformat()
+
+        limit = 3 if u.tier == 'free' else 999
+        remaining = max(0, limit - used)
+        seconds_to_reset = max(0, int(3600 - window_elapsed)) if window_elapsed <= 3600 else 3600
+
+        return jsonify({
+            "tier": u.tier,
+            "limit": limit,
+            "used": used,
+            "remaining": remaining,
+            "reset_at": reset_at,
+            "seconds_to_reset": seconds_to_reset,
+        })
+
+    @app.route('/api/user/me', methods=['GET'])
+    @require_auth
+    def get_me():
+        u = g.current_user
+        briefs_remaining = max(0, 3 - u.briefs_used_this_hour) if u.tier == 'free' else 999
+        hw = u.hour_window_start
+        if hw and not hw.tzinfo:
+            hw = hw.replace(tzinfo=timezone.utc)
+        reset_at = (hw + timedelta(hours=1)).isoformat() if hw else None
+
+        return jsonify({
+            "id": u.id,
+            "email": u.email,
+            "display_name": u.display_name,
+            "tier": u.tier,
+            "timezone": u.timezone,
+            "default_brief_length": u.default_brief_length,
+            "default_sections": json.loads(u.default_sections) if u.default_sections else None,
+            "user_context": u.user_context,
+            "preferences": json.loads(u.preferences) if u.preferences else None,
+            "briefs_used_this_hour": u.briefs_used_this_hour,
+            "briefs_remaining_this_hour": briefs_remaining,
+            "reset_at": reset_at
+        })
+
+    @app.route('/api/user/me', methods=['PATCH'])
+    @require_auth
+    def update_me():
+        u = g.current_user
+        data = request.json or {}
+        if "display_name" in data:
+            u.display_name = data["display_name"]
+        if "timezone" in data:
+            u.timezone = data["timezone"]
+        if "default_brief_length" in data and data["default_brief_length"] in ("short", "medium", "long"):
+            u.default_brief_length = data["default_brief_length"]
+        if "default_sections" in data:
+            u.default_sections = json.dumps(data["default_sections"])
+        if "user_context" in data:
+            u.user_context = data["user_context"]
+        if "preferences" in data:
+            current_prefs = json.loads(u.preferences) if u.preferences else {}
+            current_prefs.update(data["preferences"])
+            u.preferences = json.dumps(current_prefs)
+
+        db.session.commit()
+        return jsonify({"message": "Updated"})
+
+    @app.route('/api/user/me', methods=['DELETE'])
+    @require_auth
+    def delete_me():
+        db.session.delete(g.current_user)
+        db.session.commit()
+        return jsonify({"message": "Account deleted"})
+
+    @app.route('/api/user/preferences', methods=['PATCH'])
+    @require_auth
+    def update_preferences():
+        u = g.current_user
+        data = request.json or {}
+        current_prefs = json.loads(u.preferences) if u.preferences else {}
+
+        allowed = {"theme", "default_view", "show_watchlist", "show_sources", "default_length"}
+        for k in allowed:
+            if k in data:
+                current_prefs[k] = data[k]
+
+        u.preferences = json.dumps(current_prefs)
+        db.session.commit()
+        return jsonify({"message": "Preferences updated"})
+
+    return app
 
 
+app = create_app()
 
-
-# ── Entrypoint ────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    app = create_app()
-    app.run(debug=False, port=5001)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, debug=True)

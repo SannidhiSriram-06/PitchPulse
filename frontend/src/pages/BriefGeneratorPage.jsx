@@ -1,305 +1,526 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon } from 'lucide-react'
-import useBriefStore from '../store/briefStore'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Sparkles, ChevronDown, ChevronUp, Lock, FileText, AlertTriangle } from 'lucide-react'
 import api from '../lib/api'
-import usePrefsStore from '../store/prefsStore'
-import useIsMobile from '../hooks/useIsMobile'
-import useThemeStore from '../store/themeStore'
+import Layout from '../components/Layout'
+import useAuthStore from '../store/authStore'
 import RateLimitModal from '../components/RateLimitModal'
+import HorizontalTextReveal from '../components/HorizontalTextReveal'
+import AIChatInput from '../components/AIChatInput'
+import { ALL_SECTIONS, MODELS } from '../utils/constants'
+import { useToast } from '../components/Toast'
+import { StorageWidget } from '../components/StorageWidget'
+import StreamingBriefPreview from '../components/StreamingBriefPreview'
 
-const STATUS_MESSAGES = (company) => [
-    `Searching for recent news on ${company}...`,
-    'Analyzing financial signals...',
-    'Checking social sentiment...',
-    'Writing your brief...',
-    'Almost done...',
+const STATUS_MESSAGES = [
+  { text: 'Parsing your intent…',            sub: 'Understanding your goal and target company'        },
+  { text: 'Searching live web sources…',     sub: 'Scanning news, filings, and announcements'         },
+  { text: 'Analysing financial signals…',    sub: 'Revenue, funding, market position'                 },
+  { text: 'Mapping the competitive field…',  sub: 'Tracking rival moves'                              },
+  { text: 'Finding relevant job signals…',   sub: 'What their hiring reveals about priorities'        },
+  { text: 'Building talking points…',        sub: 'Tailored to your specific pitch and product'       },
+  { text: 'Almost ready…',                   sub: 'Final quality check'                               },
 ]
-
-const ALL_SECTIONS = [
-    { key: 'summary', label: 'Summary' },
-    { key: 'news', label: 'News' },
-    { key: 'financials', label: 'Financials' },
-    { key: 'social_sentiment', label: 'Social Sentiment' },
-    { key: 'talking_points', label: 'Talking Points' },
-    { key: 'watch_out_for', label: 'Watch Out For' },
-]
-
-const TEMPLATES = {
-  'Cold Call': "Focus on their pain points, recent challenges, and what would make them receptive to a new vendor. What's the best opening angle?",
-  'First Meeting': "What are their current strategic priorities? What business problems are they actively trying to solve right now?",
-  'Partnership': "What are their partnership history and ecosystem strategy? Where are the gaps we could fill as a partner?",
-  'Renewal': "What's their satisfaction level likely to be? What risks exist for churn? What new value can we offer to strengthen renewal?"
-}
 
 export default function BriefGeneratorPage() {
-    const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
-    const { generating, statusMessage, generateBrief, setStatusMessage } = useBriefStore()
-    const { defaultLength } = usePrefsStore()
-    const { theme, toggleTheme } = useThemeStore()
+  const navigate            = useNavigate()
+  const location            = useLocation()
+  const { user, consumeBriefCredit } = useAuthStore()
+  const toast               = useToast()
 
-    const [comparisonMode, setComparisonMode] = useState(false)
-    const [company, setCompany] = useState(searchParams.get('company') || '')
-    const [company2, setCompany2] = useState('')
-    const [length, setLength] = useState(defaultLength || 'medium')
-    const [sections, setSections] = useState(ALL_SECTIONS.map((s) => s.key))
-    const [customPrompt, setCustomPrompt] = useState('')
-    const [selectedTemplate, setSelectedTemplate] = useState(null)
-    const [error, setError] = useState('')
-    const [isGenerating, setIsGenerating] = useState(false)
-    const [rateLimitData, setRateLimitData] = useState(null)
-    const statusInterval = useRef(null)
+  // Pre-fill from ?company= param (from watchlist clicks etc.)
+  const initialCompany = new URLSearchParams(location.search).get('company') || ''
 
-    const toggleSection = (key) => {
-        setSections((prev) =>
-            prev.includes(key) ? (prev.length > 1 ? prev.filter((s) => s !== key) : prev) : [...prev, key]
-        )
+  const [query,          setQuery]          = useState(initialCompany)
+  const [length,         setLength]         = useState(user?.default_brief_length || 'medium')
+  // Job Signals and Social Sentiment are off by default — low value for B2B sales reps
+  const DEFAULT_SECTIONS = ALL_SECTIONS.map(s => s.id).filter(id => id !== 'job_signals' && id !== 'social_sentiment')
+  const [sections,       setSections]       = useState(DEFAULT_SECTIONS)
+  const [selectedModel,  setSelectedModel]  = useState('meta-llama/llama-4-scout-17b-16e-instruct')
+  const [deepMindMode,   setDeepMindMode]   = useState(false)
+  const [showSections,   setShowSections]   = useState(false)
+  const [showModelPanel, setShowModelPanel] = useState(false)
+
+  // PDF context
+  const [pdfFile,        setPdfFile]        = useState(null)
+  const [pdfContext,     setPdfContext]      = useState('')
+  const [pdfLoading,     setPdfLoading]     = useState(false)
+
+  // Generation state
+  const [generating,     setGenerating]     = useState(false)
+  const [statusStep,     setStatusStep]     = useState(0)
+  const [error,          setError]          = useState('')
+  const [rateLimitData,  setRateLimitData]  = useState(null)
+  // After generation: show inline streaming preview instead of navigating
+  const [streamingBrief, setStreamingBrief] = useState(null)  // { id, data }
+
+  // Model panel ref for click-outside
+  const modelPanelRef = useRef(null)
+
+  useEffect(() => {
+    if (!showModelPanel) return
+    const handler = (e) => {
+      if (modelPanelRef.current && !modelPanelRef.current.contains(e.target)) {
+        setShowModelPanel(false)
+      }
     }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showModelPanel])
 
-    const startStatusCycle = (companyName) => {
-        const messages = STATUS_MESSAGES(companyName)
-        let i = 0
-        setStatusMessage(messages[0])
-        statusInterval.current = setInterval(() => {
-            i++
-            if (i < messages.length) setStatusMessage(messages[i])
-            else clearInterval(statusInterval.current)
-        }, 3000)
+  // Cycle status messages during generation
+  useEffect(() => {
+    if (!generating) return
+    const id = setInterval(() => {
+      setStatusStep(s => Math.min(s + 1, STATUS_MESSAGES.length - 1))
+    }, 9000)
+    return () => clearInterval(id)
+  }, [generating])
+
+  // PDF upload handler
+  const handlePdfSelect = async (file) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('PDF must be under 5MB')
+      return
     }
-
-    const handleGenerate = async () => {
-        if (comparisonMode) {
-            if (!company.trim() || !company2.trim()) { setError('Enter both company names.'); return }
-            setError('')
-            setIsGenerating(true)
-            startStatusCycle(`${company.trim()} vs ${company2.trim()}`)
-            try {
-                const res = await api.post('/api/brief/compare', {
-                    company1: company.trim(),
-                    company2: company2.trim(),
-                    length,
-                    custom_prompt: customPrompt.trim()
-                })
-                clearInterval(statusInterval.current)
-                setIsGenerating(false)
-                navigate(`/brief/${res.data.brief_id}`)
-            } catch (err) {
-                clearInterval(statusInterval.current)
-                setIsGenerating(false)
-                if (err.response?.status === 429) {
-                    setRateLimitData({ resetInMinutes: err.response.data?.reset_in_minutes })
-                    return
-                }
-                setError(err.response?.data?.error || 'Generation failed. Try again.')
-            }
-        } else {
-            if (!company.trim()) { setError('Enter a company name.'); return }
-            setError('')
-            startStatusCycle(company.trim())
-            try {
-                const result = await generateBrief(company.trim(), length, sections, customPrompt.trim())
-                clearInterval(statusInterval.current)
-                navigate(`/brief/${result.brief_id}`)
-            } catch (err) {
-                clearInterval(statusInterval.current)
-                if (err.response?.status === 429) {
-                    setRateLimitData({ resetInMinutes: err.response.data?.reset_in_minutes })
-                    return
-                }
-                setError(err.response?.data?.error || 'Generation failed. Try again.')
-            }
-        }
+    setPdfFile(file)
+    setPdfLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      // Do NOT set Content-Type manually — axios must auto-set it with the multipart boundary
+      const res = await api.post('/api/extract-pdf', formData)
+      setPdfContext(res.data.text)
+      toast.success(`PDF loaded — ${res.data.pages} page${res.data.pages !== 1 ? 's' : ''} extracted`)
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Could not read PDF'
+      toast.error(msg)
+      console.error('[PDF upload]', err.response?.status, err.response?.data)
+      setPdfFile(null)
+      setPdfContext('')
+    } finally {
+      setPdfLoading(false)
     }
+  }
 
-    useEffect(() => () => clearInterval(statusInterval.current), [])
+  const handlePdfClear = () => {
+    setPdfFile(null)
+    setPdfContext('')
+  }
 
-    const isMobile = useIsMobile()
+  const handleGenerate = async (e) => {
+    if (e?.preventDefault) e.preventDefault()
+    if (!query.trim()) { setError('Please describe what you want to research'); return }
+    if (pdfLoading) { setError('Still processing your PDF — please wait'); return }
+    setError('')
+    setGenerating(true)
+    setStatusStep(0)
 
-    return (
-        <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
+    try {
+      const res = await api.post('/api/brief', {
+        query:       query.trim(),
+        length,
+        sections,
+        model_id:    selectedModel,
+        deep_mind:   deepMindMode,
+        pdf_context: pdfContext || undefined
+      })
 
-            {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
-                <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                    <ArrowLeft size={16} /> Dashboard
-                </button>
-                <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
-                </span>
-            </nav>
+      consumeBriefCredit({
+        briefs_remaining_this_hour: res.data.briefs_remaining_this_hour,
+        reset_at:                   res.data.reset_at
+      })
 
-            {/* Loading overlay */}
-            {(generating || isGenerating) && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)ee', zIndex: 999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
-                    <div style={{ width: '48px', height: '48px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    <p style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: '600' }}>{statusMessage}</p>
-                    <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem' }}>This takes 20–60 seconds. Don't close the tab.</p>
-                    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-                </div>
-            )}
+      // Show inline streaming preview — don't navigate away
+      setGenerating(false)
+      setStreamingBrief({ id: res.data.id, data: res.data.brief })
+    } catch (err) {
+      setGenerating(false)
+      if (err.response?.status === 429) {
+        setRateLimitData({
+          resetInMinutes: err.response.data.reset_in_minutes,
+          resetAt:        err.response.data.reset_at
+        })
+      } else {
+        setError(err.response?.data?.error || 'Failed to generate brief. Please try again.')
+      }
+    }
+  }
 
-            {/* Content */}
-            <div style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '2rem 1rem' : '3rem 1.5rem' }}>
+  const toggleSection = (id) =>
+    setSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
 
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '0.5rem' }}>Generate a Brief</h1>
-                <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Enter a company name and we'll do the rest.</p>
+  const toggleAll = () =>
+    setSections(sections.length === ALL_SECTIONS.length ? [] : ALL_SECTIONS.map(s => s.id))
 
-                {/* Mode Toggle */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2.5rem' }}>
-                    <button onClick={() => setComparisonMode(false)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${!comparisonMode ? 'var(--accent)' : 'var(--border)'}`, background: !comparisonMode ? 'var(--accent-15)' : 'var(--surface)', color: !comparisonMode ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: !comparisonMode ? '700' : '400' }}>
-                        Single Company
-                    </button>
-                    <button onClick={() => setComparisonMode(true)}
-                        style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${comparisonMode ? 'var(--accent)' : 'var(--border)'}`, background: comparisonMode ? 'var(--accent-15)' : 'var(--surface)', color: comparisonMode ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: comparisonMode ? '700' : '400' }}>
-                        Compare Two
-                    </button>
-                </div>
+  const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0]
 
-                {/* Meeting Type */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>MEETING TYPE (OPTIONAL)</label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                {Object.entries(TEMPLATES).map(([key, value]) => {
-                                    const active = selectedTemplate === key
-                                    return (
-                                        <button key={key} onClick={() => {
-                                            if (active) {
-                                                setSelectedTemplate(null)
-                                                setCustomPrompt('')
-                                            } else {
-                                                setSelectedTemplate(key)
-                                                setCustomPrompt(value)
-                                            }
-                                        }}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-15)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
-                                            {key}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
+  return (
+    <Layout>
+      {rateLimitData && (
+        <RateLimitModal
+          isOpen
+          onClose={() => setRateLimitData(null)}
+          resetInMinutes={rateLimitData.resetInMinutes}
+          resetAt={rateLimitData.resetAt}
+        />
+      )}
 
-                {!comparisonMode && (
-                    <>
-                        {/* Company input */}
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company Name</label>
-                            <input
-                                value={company} onChange={(e) => setCompany(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                placeholder="e.g. Razorpay, Infosys, Zomato..."
-                                autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
-                            />
-                        </div>
-                    </>
-                )}
+      {/* ── Model picker panel — fixed to the right of viewport ── */}
+      <AnimatePresence>
+        {showModelPanel && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-[400]"
+              onClick={() => setShowModelPanel(false)}
+            />
+            <motion.div
+              ref={modelPanelRef}
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{  opacity: 0, x: 16 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="fixed top-20 right-4 z-[500] w-72 bg-surface-light dark:bg-[#1c1c1c] border border-border dark:border-[rgba(255,255,255,0.10)] rounded-2xl shadow-2xl p-2 overflow-hidden"
+            >
+              <div className="px-3 py-2 text-[10px] font-bold text-tx-tertiary uppercase tracking-widest border-b border-border dark:border-[rgba(255,255,255,0.06)] mb-2">
+                Select AI Model
+              </div>
 
-                {comparisonMode && (
-                    <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexDirection: isMobile ? 'column' : 'row' }}>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 1</label>
-                            <input
-                                value={company} onChange={(e) => setCompany(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                placeholder="e.g. Infosys"
-                                autoFocus
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
-                            />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Company 2</label>
-                            <input
-                                value={company2} onChange={(e) => setCompany2(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                placeholder="e.g. TCS"
-                                style={{ width: '100%', background: 'var(--surface)', border: '1px solid #333333', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1.1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px' }}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Length */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Brief Length</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {['short', 'medium', 'long'].map((l) => (
-                            <button key={l} onClick={() => setLength(l)}
-                                style={{ flex: 1, padding: '0.6rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--surface)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-                    <p style={{ color: '#444444', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-                        {length === 'short' ? '~15–20 seconds' : length === 'medium' ? '~30–45 seconds' : '~60–90 seconds'}
-                    </p>
-                </div>
-
-                {!comparisonMode && (
-                    <>
-                        {/* Sections */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Sections to include</label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                {ALL_SECTIONS.map((s) => {
-                                    const active = sections.includes(s.key)
-                                    return (
-                                        <button key={s.key} onClick={() => toggleSection(s.key)}
-                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-15)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: isMobile ? '0.75rem' : '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: active ? '600' : '400' }}>
-                                            {s.label}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* Custom Prompt */}
-                        <div style={{ marginBottom: '2.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>Custom Focus (optional)</label>
-                            <textarea
-                                value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-                                placeholder="e.g. Focus on their AI strategy and recent layoffs, or Ask about their cloud migration plans"
-                                maxLength={500}
-                                style={{ width: '100%', minHeight: '80px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '1rem', color: 'var(--text)', fontSize: '1rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '-0.3px', resize: 'vertical' }}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem' }}>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', margin: 0 }}>
-                                    Add any specific angle or question you want the brief to address.
-                                </p>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', margin: 0 }}>
-                                    {customPrompt.length}/500
-                                </p>
-                            </div>
-                        </div>
-
-                {error && (
-                    <div style={{ background: '#1a0a0a', border: '1px solid #EF4444', borderRadius: '4px', padding: '0.75rem', marginBottom: '1.5rem', color: '#EF4444', fontSize: '0.875rem' }}>
-                        {error}
-                    </div>
-                )}
-
-                <button onClick={handleGenerate} disabled={generating || isGenerating}
-                    style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '6px', padding: '1rem', color: 'var(--accent-text)', fontSize: '1rem', fontWeight: '800', fontFamily: 'Space Grotesk, sans-serif', cursor: (generating || isGenerating) ? 'not-allowed' : 'pointer', letterSpacing: '-0.3px' }}>
-                    ⚡ {comparisonMode ? 'Compare Companies' : 'Generate Brief'}
-                </button>
-
-            </div>
-            {rateLimitData && (
-                <RateLimitModal
-                    resetInMinutes={rateLimitData.resetInMinutes}
-                    onClose={() => setRateLimitData(null)}
+              {/* Free tier */}
+              <div className="px-3 py-1 text-[9px] font-bold text-tx-tertiary/50 uppercase tracking-widest mb-1">Free</div>
+              {MODELS.filter(m => m.tier === 'free').map(m => (
+                <ModelOption
+                  key={m.id}
+                  model={m}
+                  selected={selectedModel === m.id}
+                  locked={false}
+                  onSelect={() => { setSelectedModel(m.id); setShowModelPanel(false) }}
                 />
+              ))}
+
+              {/* Pro tier */}
+              <div className="px-3 py-1 text-[9px] font-bold text-indigo-400/70 uppercase tracking-widest mt-3 mb-1">Pro</div>
+              {MODELS.filter(m => m.tier === 'pro').map(m => {
+                const locked = user?.tier !== 'pro'
+                return (
+                  <ModelOption
+                    key={m.id}
+                    model={m}
+                    selected={selectedModel === m.id}
+                    locked={locked}
+                    onSelect={() => { if (!locked) { setSelectedModel(m.id); setShowModelPanel(false) } }}
+                  />
+                )
+              })}
+
+              {user?.tier !== 'pro' && (
+                <div className="mt-3 pt-2 border-t border-border dark:border-[rgba(255,255,255,0.06)] px-3 pb-2">
+                  <p className="text-[10px] text-tx-tertiary leading-relaxed">
+                    Pro models unlock larger context windows and deeper reasoning. <span className="text-accent">Upgrade soon.</span>
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className={streamingBrief ? 'max-w-3xl mx-auto' : 'max-w-2xl mx-auto'}>
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
+                <HorizontalTextReveal inline>New Brief</HorizontalTextReveal>
+              </h1>
+              <p className="text-sm text-tx-secondary">
+                Describe your research goal — the AI figures out the rest
+              </p>
+            </div>
+            {user?.tier === 'free' && !streamingBrief && (
+              <StorageWidget
+                variant="compact"
+                remaining={user?.briefs_remaining_this_hour ?? 3}
+                total={3}
+                resetAt={user?.reset_at}
+                className="shrink-0 mt-1"
+              />
             )}
-        </div>
-    )
+          </div>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {streamingBrief ? (
+            /* ── Streaming brief preview ── */
+            <motion.div
+              key="streaming"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* "New brief" reset button */}
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={() => {
+                    setStreamingBrief(null)
+                    setQuery('')
+                    setPdfFile(null)
+                    setPdfContext('')
+                    setError('')
+                  }}
+                  className="text-xs text-tx-tertiary hover:text-tx-primary border border-border dark:border-[rgba(255,255,255,0.06)] px-3 py-1.5 rounded-lg transition-all hover:border-accent/30 active:scale-95"
+                >
+                  ← New brief
+                </button>
+              </div>
+              <StreamingBriefPreview
+                brief={streamingBrief.data}
+                briefId={streamingBrief.id}
+                onOpenFull={() => navigate(`/brief/${streamingBrief.id}`)}
+              />
+            </motion.div>
+          ) : generating ? (
+            /* ── Generating state ── */
+            <motion.div
+              key="generating"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-20 flex flex-col items-center justify-center text-center border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl bg-surface-light dark:bg-surface relative overflow-hidden"
+            >
+              {/* Progress bar */}
+              <div className="absolute top-0 left-0 h-0.5 bg-accent/10 w-full">
+                <motion.div
+                  className="h-full bg-accent rounded-r-full"
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${Math.min(((statusStep + 1) / STATUS_MESSAGES.length) * 100, 95)}%` }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
+                />
+              </div>
+
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
+                className="w-20 h-20 rounded-full border-2 border-accent/20 border-t-accent flex items-center justify-center mb-8"
+              >
+                <Sparkles className="w-8 h-8 text-accent" />
+              </motion.div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={statusStep}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{  opacity: 0, y: -10 }}
+                  className="space-y-1.5 px-8"
+                >
+                  <p className="text-lg font-display font-semibold">{STATUS_MESSAGES[statusStep].text}</p>
+                  <p className="text-sm text-tx-tertiary">{STATUS_MESSAGES[statusStep].sub}</p>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="flex gap-1.5 mt-8">
+                {STATUS_MESSAGES.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                      i <= statusStep ? 'bg-accent' : 'bg-surface-raised dark:bg-surface-raised/60'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {query && (
+                <p className="text-xs text-tx-tertiary font-mono mt-6 px-8 truncate max-w-sm opacity-60">
+                  "{query.length > 60 ? query.slice(0, 60) + '…' : query}"
+                </p>
+              )}
+            </motion.div>
+          ) : (
+            /* ── Form ── */
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="space-y-4"
+            >
+              {/* Main input */}
+              <AIChatInput
+                value={query}
+                onChange={(val) => { setQuery(val); setError('') }}
+                onSubmit={handleGenerate}
+                generating={generating}
+                selectedModel={selectedModel}
+                onModelPickerToggle={() => setShowModelPanel(v => !v)}
+                showModelPicker={showModelPanel}
+                deepMindMode={deepMindMode}
+                setDeepMindMode={setDeepMindMode}
+                pdfFile={pdfFile}
+                onPdfSelect={handlePdfSelect}
+                onPdfClear={handlePdfClear}
+                userTier={user?.tier || 'free'}
+              />
+
+              {/* PDF loading indicator */}
+              {pdfLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 text-xs text-accent px-1"
+                >
+                  <div className="w-3 h-3 rounded-full border border-accent/30 border-t-accent animate-spin" />
+                  Extracting PDF text…
+                </motion.div>
+              )}
+
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-400 text-sm flex items-center gap-2 px-1"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {error}
+                </motion.p>
+              )}
+
+              {/* Hint */}
+              <p className="text-xs text-tx-tertiary/60 px-1 leading-relaxed">
+                <span className="font-semibold text-tx-tertiary/80">Tip:</span> The more detail you give, the better the brief.
+                Include what you sell and your specific angle — e.g. <span className="font-mono">"Research Salesforce, pitching DevOps automation tools to their engineering org"</span>
+              </p>
+
+              {/* Brief Length */}
+              <div className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl p-5">
+                <label className="block text-sm font-semibold mb-3 text-tx-primary-light dark:text-tx-primary">Brief Length</label>
+                <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl gap-1">
+                  {[
+                    { id: 'short',  label: 'Quick Scan',  sub: '~2 min read'  },
+                    { id: 'medium', label: 'Standard',    sub: '~5 min read'  },
+                    { id: 'long',   label: 'Deep Dive',   sub: '~15 min read' },
+                  ].map(l => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setLength(l.id)}
+                      className={`flex-1 py-2.5 px-3 rounded-lg text-center transition-all ${
+                        length === l.id
+                          ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary'
+                          : 'text-tx-tertiary hover:text-tx-secondary'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{l.label}</div>
+                      <div className="text-[10px] text-tx-tertiary mt-0.5 hidden sm:block">{l.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sections accordion */}
+              <div className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowSections(!showSections)}
+                  className="w-full flex justify-between items-center p-5 hover:bg-surface-raised-light dark:hover:bg-surface-raised/40 transition"
+                >
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-tx-primary-light dark:text-tx-primary">Sections to include</div>
+                    <div className="text-xs text-tx-tertiary mt-0.5">{sections.length} of {ALL_SECTIONS.length} selected</div>
+                  </div>
+                  {showSections
+                    ? <ChevronUp className="w-4 h-4 text-tx-tertiary" />
+                    : <ChevronDown className="w-4 h-4 text-tx-tertiary" />}
+                </button>
+                <AnimatePresence>
+                  {showSections && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-border dark:border-[rgba(255,255,255,0.06)]"
+                    >
+                      <div className="p-5 pt-4">
+                        <button
+                          type="button"
+                          onClick={toggleAll}
+                          className="text-xs text-accent hover:underline mb-4 block"
+                        >
+                          {sections.length === ALL_SECTIONS.length ? 'Deselect all' : 'Select all'}
+                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {ALL_SECTIONS.map(s => (
+                            <label
+                              key={s.id}
+                              className="flex items-center gap-2.5 cursor-pointer group p-2 rounded-xl hover:bg-surface-raised-light dark:hover:bg-surface-raised transition"
+                            >
+                              <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={sections.includes(s.id)}
+                                onChange={() => toggleSection(s.id)}
+                              />
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                                sections.includes(s.id)
+                                  ? 'bg-accent border-accent'
+                                  : 'border-tx-tertiary group-hover:border-accent/50'
+                              }`}>
+                                {sections.includes(s.id) && (
+                                  <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className="text-xs">{s.icon}</span>
+                              <span className={`text-sm ${sections.includes(s.id) ? 'text-tx-primary-light dark:text-tx-primary' : 'text-tx-secondary'}`}>
+                                {s.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </Layout>
+  )
+}
+
+function ModelOption({ model, selected, locked, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={locked}
+      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 ${
+        selected
+          ? 'bg-accent/10 text-accent'
+          : locked
+          ? 'opacity-40 cursor-not-allowed text-tx-tertiary'
+          : 'hover:bg-surface-raised-light dark:hover:bg-surface-raised text-tx-secondary hover:text-tx-primary'
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="text-xs font-semibold truncate">{model.name}</div>
+        <div className="text-[10px] text-tx-tertiary truncate mt-0.5 leading-relaxed">{model.desc}</div>
+      </div>
+      <div className="shrink-0 mt-0.5">
+        {locked ? (
+          <span className="flex items-center gap-0.5 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-bold uppercase">
+            <Lock className="w-2.5 h-2.5" /> Pro
+          </span>
+        ) : selected ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-accent block mt-1" />
+        ) : null}
+      </div>
+    </button>
+  )
 }

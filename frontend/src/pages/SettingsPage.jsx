@@ -1,233 +1,193 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { User, Sliders, CreditCard } from 'lucide-react'
+import api from '../lib/api'
+import Layout from '../components/Layout'
 import useAuthStore from '../store/authStore'
 import usePrefsStore from '../store/prefsStore'
-import api from '../lib/api'
-import useIsMobile from '../hooks/useIsMobile'
-import useThemeStore from '../store/themeStore'
+import ExpandableTabs from '../components/ExpandableTabs'
+import { MetalButton } from '../components/MetalButton'
+import { useToast } from '../components/Toast'
+import { TIMEZONES } from '../utils/constants'
 
 export default function SettingsPage() {
-    const navigate = useNavigate()
-    const isMobile = useIsMobile()
-    const { user, logout } = useAuthStore()
-    const { defaultLength, defaultView, setPrefs } = usePrefsStore()
-    const { theme, toggleTheme } = useThemeStore()
+  const { signOut } = useAuth()
+  const { user, updateUser } = useAuthStore()
+  const { theme, setPrefs } = usePrefsStore()
+  const toast = useToast()
+  const [activeTab, setActiveTab] = useState('account')
+  const [formData, setFormData] = useState({
+    display_name: '',
+    timezone: '',
+    default_brief_length: 'medium',
+    user_context: ''
+  })
+  const [saving, setSaving] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
-    const [currentPassword, setCurrentPassword] = useState('')
-    const [newPassword, setNewPassword] = useState('')
-    const [pwMsg, setPwMsg] = useState('')
-    const [pwError, setPwError] = useState('')
-    const [pwLoading, setPwLoading] = useState(false)
-
-    const [length, setLength] = useState(defaultLength || 'medium')
-    const [view, setView] = useState(defaultView || 'tabs')
-    const [prefsSaved, setPrefsSaved] = useState(false)
-
-    const [deleteModal, setDeleteModal] = useState(false)
-    const [deleteLoading, setDeleteLoading] = useState(false)
-
-    const handleChangePassword = async () => {
-        setPwMsg(''); setPwError('')
-        if (!currentPassword || !newPassword) { setPwError('Both fields are required.'); return }
-        if (newPassword.length < 8) { setPwError('New password must be at least 8 characters.'); return }
-        setPwLoading(true)
-        try {
-            await api.post('/api/auth/change-password', { current_password: currentPassword, new_password: newPassword })
-            setPwMsg('Password updated successfully.')
-            setCurrentPassword(''); setNewPassword('')
-        } catch (err) {
-            setPwError(err.response?.data?.error || 'Failed to update password.')
-        }
-        setPwLoading(false)
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        display_name: user.display_name || '',
+        timezone: user.timezone || 'Asia/Kolkata',
+        default_brief_length: user.default_brief_length || 'medium',
+        user_context: user.user_context || ''
+      })
     }
+  }, [user])
 
-    const handleSavePrefs = async () => {
-        setPrefs({ defaultLength: length, defaultView: view })
-        try {
-            await api.patch('/api/user/preferences', { default_length: length, default_view: view })
-        } catch (e) { }
-        setPrefsSaved(true)
-        setTimeout(() => setPrefsSaved(false), 2000)
+  const saveSettings = async () => {
+    setSaving(true)
+    try {
+      await api.patch('/api/user/me', formData)
+      updateUser(formData)
+      toast.success('Settings saved')
+    } catch {
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
     }
+  }
 
-    const handleDeleteAccount = async () => {
-        setDeleteLoading(true)
-        try {
-            await api.delete('/api/auth/account')
-            logout()
-            navigate('/')
-        } catch (e) { }
-        setDeleteLoading(false)
+  const handleDeleteAccount = async () => {
+    try {
+      await api.delete('/api/user/me')
+      signOut()
+    } catch (e) {
+      console.error(e)
     }
+  }
 
-    const sectionStyle = {
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '6px',
-        padding: '1.5rem',
-        marginBottom: '1rem'
-    }
+  if (!user) return <Layout>Loading...</Layout>
 
-    const labelStyle = {
-        fontSize: '0.7rem',
-        color: 'var(--text-sec)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.1em',
-        display: 'block',
-        marginBottom: '0.5rem'
-    }
-
-    const inputStyle = {
-        width: '100%',
-        background: 'var(--bg)',
-        border: '1px solid var(--border)',
-        borderRadius: '4px',
-        padding: '0.75rem',
-        color: 'var(--text)',
-        fontSize: '0.875rem',
-        fontFamily: 'Space Grotesk, sans-serif',
-        outline: 'none',
-        boxSizing: 'border-box',
-        marginBottom: '0.75rem'
-    }
-
-    return (
-        <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-
-            {/* Nav */}
-            <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 1rem', display: 'flex', alignItems: 'center', height: '56px', gap: '1rem' }}>
-                <button onClick={() => navigate('/dashboard')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                    <ArrowLeft size={16} /> Dashboard
-                </button>
-                <div style={{ flex: 1 }} />
-                <button onClick={toggleTheme} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.4rem', color: 'var(--text-sec)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: '1rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-                    Pitch<span style={{ color: 'var(--accent)' }}>Pulse</span>
-                </span>
-            </nav>
-
-            <div style={{ maxWidth: '600px', margin: '0 auto', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 5vw, 1.75rem)', fontWeight: '800', letterSpacing: '-1px', marginBottom: '1.5rem' }}>Settings</h1>
-
-                {/* Account */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Account</p>
-                    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.75rem', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--text-sec)' }}>
-                        {user?.email}
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.75rem' }}>Change Password</p>
-                    <label style={labelStyle}>Current Password</label>
-                    <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Current password" style={inputStyle} />
-                    <label style={labelStyle}>New Password</label>
-                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
-                        placeholder="Min. 8 characters" style={{ ...inputStyle, marginBottom: '1rem' }} />
-
-                    {pwError && <div style={{ color: '#EF4444', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{pwError}</div>}
-                    {pwMsg && <div style={{ color: '#22C55E', fontSize: '0.8rem', marginBottom: '0.75rem' }}>{pwMsg}</div>}
-
-                    <button onClick={handleChangePassword} disabled={pwLoading}
-                        style={{ background: 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif' }}>
-                        {pwLoading ? 'Updating...' : 'Update Password'}
-                    </button>
-                </div>
-
-                {/* Preferences */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Preferences</p>
-
-                    <label style={labelStyle}>Default Brief Length</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                        {['short', 'medium', 'long'].map(l => (
-                            <button key={l} onClick={() => setLength(l)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: `1px solid ${length === l ? 'var(--accent)' : 'var(--border)'}`, background: length === l ? 'var(--accent-15)' : 'var(--bg)', color: length === l ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: length === l ? '700' : '400', textTransform: 'capitalize' }}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-
-                    <label style={labelStyle}>Default View</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                        {['tabs', 'cards'].map(v => (
-                            <button key={v} onClick={() => setView(v)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: `1px solid ${view === v ? 'var(--accent)' : 'var(--border)'}`, background: view === v ? 'var(--accent-15)' : 'var(--bg)', color: view === v ? 'var(--accent)' : 'var(--text-sec)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: view === v ? '700' : '400', textTransform: 'capitalize' }}>
-                                {v}
-                            </button>
-                        ))}
-                    </div>
-
-                    <button onClick={handleSavePrefs}
-                        style={{ background: prefsSaved ? '#22C55E' : 'var(--accent)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: 'var(--accent-text)', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', transition: 'background 0.2s' }}>
-                        {prefsSaved ? 'Saved ✓' : 'Save Preferences'}
-                    </button>
-                </div>
-
-                {/* Subscription */}
-                <div style={sectionStyle}>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Subscription</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div>
-                            <p style={{ fontWeight: '700', margin: 0 }}>Free Plan</p>
-                            <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>3 briefs per hour</p>
-                        </div>
-                        <span style={{ background: 'var(--border)', color: 'var(--text-sec)', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '3px' }}>CURRENT</span>
-                    </div>
-
-                    <div style={{ background: 'var(--bg)', border: '1px solid #333333', borderRadius: '6px', padding: '1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                            <div>
-                                <p style={{ fontWeight: '700', margin: 0, color: 'var(--accent)' }}>Pro Plan</p>
-                                <p style={{ color: 'var(--text-sec)', fontSize: '0.8rem', margin: '0.2rem 0 0' }}>Unlimited briefs · Priority generation</p>
-                            </div>
-                            <span style={{ background: 'var(--accent-20)', color: 'var(--accent)', fontSize: '0.65rem', padding: '0.2rem 0.6rem', borderRadius: '3px', border: '1px solid var(--accent-40)', whiteSpace: 'nowrap' }}>COMING SOON</span>
-                        </div>
-                        <button disabled
-                            style={{ background: 'var(--border)', border: 'none', borderRadius: '4px', padding: '0.6rem 1.25rem', color: '#555555', cursor: 'not-allowed', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                            Upgrade — Coming Soon
-                        </button>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: 0 }}>
-                            Pro tier coming soon. <a href="mailto:hello@pitchpulse.app" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Join the waitlist →</a>
-                        </p>
-                    </div>
-                </div>
-
-                {/* Danger Zone */}
-                <div style={{ ...sectionStyle, border: '1px solid #2a1010' }}>
-                    <p style={{ fontSize: '0.7rem', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Danger Zone</p>
-                    <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1rem' }}>Permanently delete your account and all briefs. This cannot be undone.</p>
-                    <button onClick={() => setDeleteModal(true)}
-                        style={{ background: 'none', border: '1px solid #EF4444', borderRadius: '4px', padding: '0.6rem 1.25rem', color: '#EF4444', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                        Delete Account
-                    </button>
-                </div>
+  const tabs = [
+    {
+      id: 'account',
+      label: 'Account',
+      icon: <User className="w-3.5 h-3.5" />,
+      content: (
+        <div className="space-y-6">
+          <section className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl p-6 squircle">
+            <h2 className="text-lg font-display font-semibold mb-4 border-b border-border dark:border-[rgba(255,255,255,0.06)] pb-2">Account</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-1">Email</label>
+                <input type="text" value={user.email} disabled className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-lg px-4 py-2 opacity-60 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-1">Display Name</label>
+                <input type="text" value={formData.display_name} onChange={e => setFormData({...formData, display_name: e.target.value})} className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-lg px-4 py-2 text-sm focus:border-accent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-1">Timezone</label>
+                <select value={formData.timezone} onChange={e => setFormData({...formData, timezone: e.target.value})} className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-lg px-4 py-2 text-sm focus:border-accent outline-none">
+                  {TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <MetalButton onClick={saveSettings} disabled={saving} variant="default" preset="chromatic" className="mt-6">
+              {saving ? 'Saving...' : 'Save Changes'}
+            </MetalButton>
+          </section>
 
-            {/* Delete modal */}
-            {deleteModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)cc', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
-                    <div style={{ background: 'var(--surface)', border: '1px solid #2a1010', borderRadius: '8px', padding: '2rem', maxWidth: '400px', width: '100%' }}>
-                        <h3 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>Delete your account?</h3>
-                        <p style={{ color: 'var(--text-sec)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>All your briefs and data will be permanently deleted. There's no going back.</p>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <button onClick={() => setDeleteModal(false)}
-                                style={{ flex: 1, background: 'none', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.6rem', color: 'var(--text-sec)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
-                                Cancel
-                            </button>
-                            <button onClick={handleDeleteAccount} disabled={deleteLoading}
-                                style={{ flex: 1, background: '#EF4444', border: 'none', borderRadius: '4px', padding: '0.6rem', color: 'var(--text)', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: '700' }}>
-                                {deleteLoading ? 'Deleting...' : 'Yes, Delete Everything'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+          <section className="bg-red-500/5 border border-red-500/20 rounded-xl p-6 squircle">
+            <h2 className="text-lg font-display font-semibold mb-2 text-red-600 dark:text-red-500">Danger Zone</h2>
+            <p className="text-sm text-tx-secondary-light dark:text-tx-secondary mb-4">Permanently delete your account and all generated briefs.</p>
+            {showConfirm ? (
+              <div className="flex gap-2">
+                <MetalButton onClick={handleDeleteAccount} variant="destructive">Yes, Delete Everything</MetalButton>
+                <MetalButton onClick={() => setShowConfirm(false)} variant="outline">Cancel</MetalButton>
+              </div>
+            ) : (
+              <MetalButton onClick={() => setShowConfirm(true)} variant="destructive">Delete Account</MetalButton>
             )}
+          </section>
         </div>
-    )
+      )
+    },
+    {
+      id: 'preferences',
+      label: 'Preferences',
+      icon: <Sliders className="w-3.5 h-3.5" />,
+      content: (
+        <div className="space-y-6">
+          <section className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl p-6 squircle">
+            <h2 className="text-lg font-display font-semibold mb-4 border-b border-border dark:border-[rgba(255,255,255,0.06)] pb-2">Brief Preferences</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-2">Default Length</label>
+                <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-lg w-fit">
+                  {['short', 'medium', 'long'].map(l => (
+                     <button key={l} onClick={() => setFormData({...formData, default_brief_length: l})} className={`px-6 py-1.5 rounded capitalize text-sm font-medium ${formData.default_brief_length === l ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary' : 'text-tx-tertiary'}`}>
+                       {l}
+                     </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-1">My Context (Used by AI to tailor briefs)</label>
+                <textarea 
+                  value={formData.user_context}
+                  onChange={e => setFormData({...formData, user_context: e.target.value})}
+                  placeholder="What do you sell? e.g. 'DevOps tooling for enterprise'"
+                  className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-lg px-4 py-2 text-sm focus:border-accent outline-none min-h-[80px]"
+                />
+              </div>
+            </div>
+            <MetalButton onClick={saveSettings} disabled={saving} variant="default" preset="chromatic" className="mt-6">
+              {saving ? 'Saving...' : 'Save Changes'}
+            </MetalButton>
+          </section>
+
+          <section className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl p-6 squircle">
+            <h2 className="text-lg font-display font-semibold mb-4 border-b border-border dark:border-[rgba(255,255,255,0.06)] pb-2">Appearance</h2>
+            <div>
+              <label className="block text-sm text-tx-secondary-light dark:text-tx-secondary mb-2">Theme</label>
+              <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-lg w-fit">
+                {['system', 'light', 'dark'].map(t => (
+                   <button key={t} onClick={() => setPrefs({ theme: t })} className={`px-6 py-1.5 rounded capitalize text-sm font-medium ${theme === t ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary' : 'text-tx-tertiary'}`}>
+                     {t}
+                   </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      )
+    },
+    {
+      id: 'billing',
+      label: 'Plan & Billing',
+      icon: <CreditCard className="w-3.5 h-3.5" />,
+      content: (
+        <section className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl p-6 squircle">
+          <h2 className="text-lg font-display font-semibold mb-4 border-b border-border dark:border-[rgba(255,255,255,0.06)] pb-2">Subscription</h2>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-surface-raised-light dark:bg-surface-raised border border-border-strong p-4 rounded-lg">
+            <div>
+              <h3 className="font-medium">Free Plan</h3>
+              <p className="text-sm text-tx-secondary-light dark:text-tx-secondary">3 briefs per hour limit</p>
+            </div>
+            <button disabled className="bg-surface-raised-light dark:bg-surface-raised border border-border-strong px-4 py-2 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed flex items-center gap-2">
+              Upgrade to Pro <span className="text-[10px] bg-border px-1.5 rounded uppercase tracking-wider">Soon</span>
+            </button>
+          </div>
+        </section>
+      )
+    }
+  ]
+
+  return (
+    <Layout>
+      <h1 className="text-2xl font-display font-semibold mb-8">Settings</h1>
+      <div className="max-w-3xl">
+        <ExpandableTabs 
+          tabs={tabs} 
+          activeTab={activeTab} 
+          onChange={setActiveTab} 
+        />
+      </div>
+    </Layout>
+  )
 }

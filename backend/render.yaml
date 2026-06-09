@@ -5,24 +5,31 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "app:create_app()" --timeout 120
+    startCommand: gunicorn app:app --timeout 120
     envVars:
       - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_API_KEY_2
+        sync: false
       - key: TAVILY_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: CRON_SECRET
         sync: false
       - key: SECRET_KEY
         sync: false
-      - key: JWT_SECRET_KEY
-        sync: false
       - key: DATABASE_URL
-        fromDatabase:
-          name: pitchpulse-db
-          property: connectionString
+        sync: false
       - key: FRONTEND_URL
+        sync: false
+      - key: FLASK_ENV
         sync: false
       - key: CREWAI_TRACING_ENABLED
         value: "false"
-databases:
-  - name: pitchpulse-db
-    plan: free

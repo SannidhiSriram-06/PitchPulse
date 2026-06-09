@@ -3,43 +3,38 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Config:
-    # Flask
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-in-prod")
-    MAX_CONTENT_LENGTH = 1 * 1024 * 1024  # 1MB
-
-    # JWT
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-change-in-prod")
-    JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
-
-    # Database
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///pitchpulse.db")
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # External APIs
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2", "")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-    ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
-
-    # Resend
-    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")  # Optional — only needed for scheduled email delivery
+    CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+    CLERK_PUBLISHABLE_KEY = os.getenv("CLERK_PUBLISHABLE_KEY")
+    # JWKS URL for Clerk token verification.
+    # Find it at: Clerk Dashboard → API Keys → Advanced → JWKS URL
+    # Format: https://<your-clerk-domain>/.well-known/jwks.json
+    CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "")
+    CRON_SECRET = os.getenv("CRON_SECRET")
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///pitchpulse.db")
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-
-    # Rate limiting (free tier)
-    FREE_TIER_HOURLY_LIMIT = 3
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", 24))
+    CREWAI_TRACING_ENABLED = os.getenv("CREWAI_TRACING_ENABLED", "false").lower() == "true"
+    FLASK_ENV = os.getenv("FLASK_ENV", "development")
+    FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 
     @classmethod
     def validate(cls):
-        """Raise if any required env var is missing."""
-        missing = []
-        if not cls.GROQ_API_KEY:
-            missing.append("GROQ_API_KEY")
-        if not cls.TAVILY_API_KEY:
-            missing.append("TAVILY_API_KEY")
-        if not cls.JWT_SECRET_KEY or cls.JWT_SECRET_KEY == "dev-jwt-secret-change-in-prod":
-            # warn but don't hard-fail in dev
-            print("WARNING: JWT_SECRET_KEY is not set or using dev default. Set it in .env before production.")
-        if missing:
-            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing)}")
+        required_keys = [
+            "GROQ_API_KEY", "TAVILY_API_KEY",
+            "CLERK_SECRET_KEY", "CRON_SECRET", "SECRET_KEY"
+        ]
+        for key in required_keys:
+            if not getattr(cls, key):
+                print(f"WARNING: Missing required environment variable {key}")
+
+        if not cls.CLERK_JWKS_URL:
+            print("WARNING: CLERK_JWKS_URL not set — JWT signature verification is DISABLED. "
+                  "Set it to https://<your-clerk-domain>/.well-known/jwks.json for production security.")
+        if not cls.RESEND_API_KEY:
+            print("INFO: RESEND_API_KEY not set — scheduled brief emails will be skipped.")

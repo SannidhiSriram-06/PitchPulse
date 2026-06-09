@@ -1,30 +1,24 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// NOTE: key names here are camelCase for local use.
+// When syncing to the backend, map: defaultView → default_view, etc.
 const usePrefsStore = create(
-    persist(
-        (set) => ({
-            defaultLength: 'medium',
-            defaultView: 'tabs',
-            theme: 'dark',
-            showWatchlist: true,
-            showSources: true,
+  persist(
+    (set) => ({
+      theme: 'system',
+      defaultView: 'tabs',    // 'tabs' | 'cards'
+      defaultLength: 'medium',
+      showWatchlist: true,
+      showSources: true,
 
-            setTheme: (val) => set({ theme: val }),
-            setDefaultView: (val) => set({ defaultView: val }),
-            setShowWatchlist: (val) => set({ showWatchlist: val }),
-            setShowSources: (val) => set({ showSources: val }),
+      setPrefs: (prefs) => set(prefs),
 
-            setPrefs: ({ defaultLength, defaultView }) => {
-                set({ defaultLength, defaultView })
-            },
-            
-            loadPrefs: (prefs) => set({ ...prefs }),
-        }),
-        {
-            name: 'pitchpulse-prefs',
-        }
-    )
+      /** Merge a single key without overwriting others */
+      setPref: (key, value) => set({ [key]: value }),
+    }),
+    { name: 'pitchpulse-prefs' }
+  )
 )
 
 export default usePrefsStore

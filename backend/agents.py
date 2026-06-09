@@ -1,408 +1,619 @@
-from crewai import Agent, Task, Crew, Process, LLM
-from tools import company_web_search, company_financial_data
-from config import Config
+import itertools
 import json
+import os
 import re
+import time
+import requests
+from crewai import Agent, Task, Crew, Process, LLM
+from config import Config
+from tools import company_web_search, company_financial_data
+import tools as tools_module
 
-
-def get_llm():
-    return LLM(
-        model="groq/meta-llama/llama-4-scout-17b-16e-instruct",
-        api_key=Config.GROQ_API_KEY,
-        temperature=0.3,
-    )
-
-
-LENGTH_INSTRUCTIONS = {
-    "short": "For each section, write 2-3 concise bullet points only. Be extremely brief.",
-    "medium": "For each section, write a short paragraph (3-5 sentences). Clear and professional.",
-    "long": "For each section, provide a detailed analysis with supporting evidence, multiple angles, and specific examples where possible.",
+# Real Groq-hosted model IDs (from the official rate limits table).
+# llama-3.1-8b-instant removed — its 6K TPM is too low for our research payloads.
+VALID_FREE_MODELS = {
+    "meta-llama/llama-4-scout-17b-16e-instruct",  # 30K TPM — best default
+    "llama-3.3-70b-versatile",                     # 12K TPM
 }
+VALID_PRO_MODELS = {
+    "openai/gpt-oss-120b",
+    "qwen/qwen3-32b",
+    "groq/compound-mini",
+}
+ALL_VALID_MODELS = VALID_FREE_MODELS | VALID_PRO_MODELS
+
+DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+# Round-robin key rotator — alternates between GROQ_API_KEY and GROQ_API_KEY_2
+# on every call to spread load and avoid per-key rate limits.
+def _make_key_cycle():
+    keys = [k for k in [Config.GROQ_API_KEY, Config.GROQ_API_KEY_2] if k]
+    if not keys:
+        raise RuntimeError("No GROQ_API_KEY configured")
+    return itertools.cycle(keys)
+
+_key_cycle = None
+
+def _next_api_key():
+    global _key_cycle
+    if _key_cycle is None:
+        _key_cycle = _make_key_cycle()
+    return next(_key_cycle)
 
 
-def build_crew(company_name: str, length: str, sections: list, custom_prompt: str = "") -> Crew:
-    llm = get_llm()
-    length_instruction = LENGTH_INSTRUCTIONS.get(length, LENGTH_INSTRUCTIONS["medium"])
-    sections_str = ", ".join(sections)
-    if custom_prompt:
-        if "custom_focus" not in sections:
-            sections = sections + ["custom_focus"]
-        sections_str = ", ".join(sections)
+def extract_company_and_context(prompt, api_key=None):
+    if not prompt or not prompt.strip():
+        return "", ""
+    words = prompt.strip().split()
+    if len(words) <= 3:
+        return prompt.strip(), ""
 
-    # ── AGENT 1: Researcher ──────────────────────────────────────────────────
-    researcher = Agent(
-        role="Company Intelligence Researcher",
-        goal=(
-            f"Find comprehensive, up-to-date information about {company_name}. "
-            f"Focus on: recent news, product launches, leadership changes, "
-            f"funding rounds, and public sentiment."
-        ),
-        backstory=(
-            "You are a seasoned business intelligence analyst who knows how to "
-            "find signal in noise. You run targeted searches, cross-reference sources, "
-            "and never report stale or irrelevant data. You always note the source URL "
-            "for every fact you find."
-        ),
-        tools=[company_web_search, company_financial_data],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-        max_iter=8,
-    )
-
-    # ── AGENT 2: Analyst ─────────────────────────────────────────────────────
-    analyst = Agent(
-        role="Strategic Business Analyst",
-        goal=(
-            f"Analyze the raw research about {company_name} and extract the most "
-            f"strategically relevant insights for a sales meeting. "
-            f"Identify pain points, opportunities, and conversation angles."
-        ),
-        backstory=(
-            "You are a former McKinsey consultant turned sales enablement specialist. "
-            "You read between the lines, spot what matters to a B2B buyer, and translate "
-            "noisy data into sharp strategic insights. You never use tools — you think."
-        ),
-        tools=[],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-        max_iter=3,
-    )
-
-    # ── AGENT 3: Briefing Writer ──────────────────────────────────────────────
-    briefing_writer = Agent(
-        role="Pre-Meeting Brief Specialist",
-        goal=(
-            f"Format all research and analysis about {company_name} into a clean, "
-            f"structured JSON brief ready for a sales rep to read 5 minutes before "
-            f"walking into a meeting."
-        ),
-        backstory=(
-            "You are a meticulous technical writer who produces battle-tested sales briefs. "
-            "Your output is always valid JSON. You never add commentary outside the JSON. "
-            "Every section includes a confidence field and a sources list."
-        ),
-        tools=[],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-        max_iter=2,
-    )
-
-    # ── TASK 1: Research ──────────────────────────────────────────────────────
-    research_task = Task(
-        description=(
-            f"Research {company_name} thoroughly using targeted web searches.\n\n"
-            f"IMPORTANT: You MUST run searches ONE AT A TIME. Do NOT call multiple "
-            f"tools simultaneously. Run one search, wait for the results, read them, "
-            f"then run the next search. This is critical to avoid overloading the model.\n\n"
-            f"Execute these searches sequentially, one after another:\n"
-            f"  Step 1: Search for '{company_name} latest news 2024 2025' — wait for results.\n"
-            f"  Step 2: Search for '{company_name} products services revenue' — wait for results.\n"
-            f"  Step 3: Search for '{company_name} leadership CEO strategy' — wait for results.\n"
-            f"  Step 4: Search for '{company_name} competitors market position' — wait for results.\n"
-            f"  Step 5: Fetch financial stub data for {company_name}.\n\n"
-            f"After ALL searches are complete, compile ALL findings into a structured "
-            f"research summary. For every fact, note the source URL. "
-            f"Note how many search results were returned total.\n\n"
-            f"Once all searches are complete, write a summary of maximum 200 words as plain "
-            f"sentences only. No markdown, no headers, no bullet points, no lists. Just plain "
-            f"prose. Do not call any more tools."
-        ),
-        expected_output=(
-            "A detailed research summary including: company overview, recent news items "
-            "(with dates and URLs), financial snapshot, key leadership, products/services, "
-            "and competitive landscape. Include a 'sources' list of all URLs cited. "
-            "Include a 'total_results_found' integer."
-        ),
-        agent=researcher,
-    )
-
-    # ── TASK 2: Analysis ──────────────────────────────────────────────────────
-    analysis_task = Task(
-        description=(
-            f"Review the research summary about {company_name}. "
-            f"Produce a strategic analysis covering:\n"
-            f"- Key business challenges and pain points\n"
-            f"- Recent strategic shifts or pivots\n"
-            f"- Social/market sentiment (positive or negative)\n"
-            f"- 3-5 strong talking points for a sales rep entering this meeting\n"
-            f"- 2-3 potential risks or sensitive topics to avoid or address carefully\n\n"
-            f"Sections requested: {sections_str}. "
-            f"Length style: {length_instruction}"
-            + (f"\n\nADDITIONAL FOCUS FROM USER: {custom_prompt}\nMake sure your analysis specifically addresses this angle. Weave it into the relevant sections." if custom_prompt else "")
-        ),
-        expected_output=(
-            "A structured analysis with: talking_points (list), watch_out_for (list), "
-            "social_sentiment summary, and key strategic insights per requested section."
-        ),
-        agent=analyst,
-        context=[research_task],
-    )
-
-    # ── TASK 3: Brief Generation ──────────────────────────────────────────────
-    briefing_task = Task(
-        description=(
-            f"Using all research and analysis, generate a structured pre-meeting brief "
-            f"for {company_name} as a single valid JSON object.\n\n"
-            f"The JSON must have these top-level keys: "
-            f"summary, news, financials, social_sentiment, talking_points, watch_out_for"
-            + (f", custom_focus" if custom_prompt else "") + ".\n\n"
-            f"Each section object must have:\n"
-            f"  - 'content': the actual brief content ({length_instruction})\n"
-            f"  - 'confidence': one of 'high', 'medium', or 'low'\n"
-            f"  - 'sources': list of URLs used for this section (empty list if none)\n\n"
-            + (f"\n\nCRITICAL REQUIREMENT: You MUST include a 'custom_focus' key in your JSON output. This is mandatory, not optional. The user has specifically asked: '{custom_prompt}'\n\nThe 'custom_focus' section must:\n- Directly and specifically answer the user's question\n- Give actionable, specific advice based on the research\n- NOT be generic — reference actual facts found about the company\n- Have this exact structure:\n  \"custom_focus\": {{\n    \"content\": \"[specific answer to the user's question]\",\n    \"confidence\": \"high\" or \"medium\" or \"low\",\n    \"sources\": [list of relevant URLs]\n  }}\n\nIf you omit custom_focus from the JSON, your output will be rejected. It must appear as a top-level key.\n\n" if custom_prompt else "") +
-            f"Only include sections from this list: {sections_str}. "
-            f"If a section is not in the list, omit it entirely.\n\n"
-            f"CRITICAL: Your ENTIRE response must be ONLY the JSON object. "
-            f"No explanation before or after. No markdown code fences. Pure JSON only."
-            + (f"\n\nUSER-SPECIFIED FOCUS: {custom_prompt}\nEnsure this perspective is reflected in the brief content." if custom_prompt else "")
-        ),
-        expected_output=(
-            "A single valid JSON object with the brief sections. "
-            "Each section has 'content', 'confidence', and 'sources' keys. "
-            "Output must be parseable by json.loads() with zero modification."
-            + (f" MUST include 'custom_focus' key with specific answer to: {custom_prompt}" if custom_prompt else "")
-        ),
-        agent=briefing_writer,
-        context=[research_task, analysis_task],
-    )
-
-    crew = Crew(
-        agents=[researcher, analyst, briefing_writer],
-        tasks=[research_task, analysis_task, briefing_task],
-        process=Process.sequential,
-        verbose=True,
-    )
-
-    return crew
-
-
-def run_brief(company_name: str, length: str = "medium", sections: list = None, custom_prompt: str = "") -> dict:
-    """
-    Runs the CrewAI pipeline for a company and returns:
-    {
-        "brief": { ...sections... },
-        "sources_used": [...],
-        "limited_data": bool,
-        "raw_output": str  (for debugging)
-    }
-    """
-    if sections is None:
-        sections = ["summary", "news", "financials", "social_sentiment",
-                    "talking_points", "watch_out_for"]
-
-    crew = build_crew(company_name, length, sections, custom_prompt)
-    result = crew.kickoff()
-
-    # result.raw is the final task output string
-    raw_output = result.raw if hasattr(result, "raw") else str(result)
-
-    # Parse JSON from the briefing agent's output
-    brief_json = _extract_json(raw_output)
-
-    # Collect all sources mentioned across sections
-    sources_used = []
-    if isinstance(brief_json, dict):
-        for section_data in brief_json.values():
-            if isinstance(section_data, dict):
-                sources = section_data.get("sources", [])
-                sources_used.extend(sources)
-    sources_used = list(set(sources_used))  # deduplicate
-
-    # Determine limited_data flag
-    # We check research task output for total_results_found
-    limited_data = False
+    key = api_key or _next_api_key()
     try:
-        research_output = result.tasks_output[0].raw if result.tasks_output else ""
-        if "total_results_found" in research_output:
-            match = re.search(r"total_results_found['\"]?\s*[=:]\s*(\d+)", research_output)
-            if match and int(match.group(1)) < 2:
-                limited_data = True
-        elif not sources_used or len(sources_used) < 2:
-            limited_data = True
-    except Exception:
-        pass
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            # llama-4-scout: 30K TPM — best for parsing, never rate-limited
+            # Note: Groq REST API uses bare model IDs (no "groq/" prefix — that's LiteLLM only)
+            "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a precise JSON extractor for a B2B sales intelligence tool. "
+                        "The user provides a natural language research query which may include: "
+                        "the company to research, what they are selling, and their specific pitch angle. "
+                        "Extract exactly two fields: "
+                        "1. company_name — the single specific company name to research (just the name, nothing else). "
+                        "2. user_context — concise description of what the rep sells and their pitch angle "
+                        "(e.g. 'AI software for real-time chip manufacturing defect detection and quality control'). "
+                        "Return ONLY valid JSON: "
+                        '{\"company_name\": \"<company>\", \"user_context\": \"<pitch>\"}. '
+                        "If no company is identifiable, set company_name to empty string. "
+                        "No markdown, no explanation, no extra keys."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.0,
+            "response_format": {"type": "json_object"}
+        }
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=payload, headers=headers, timeout=5
+        )
+        if res.status_code == 200:
+            data = res.json()
+            content = data["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+            return (
+                parsed.get("company_name", prompt).strip(),
+                parsed.get("user_context", "").strip()
+            )
+    except Exception as e:
+        print(f"[PitchPulse] Prompt parsing error: {e}")
 
-    return {
-        "brief": brief_json,
-        "sources_used": sources_used,
-        "limited_data": limited_data,
-        "raw_output": raw_output,
-    }
-
-
-def build_comparison_crew(company1: str, company2: str, length: str, custom_prompt: str = "") -> Crew:
-    llm = get_llm()
-    length_instruction = LENGTH_INSTRUCTIONS.get(length, LENGTH_INSTRUCTIONS["medium"])
-
-    researcher1 = Agent(
-        role=f"Company Intelligence Researcher ({company1})",
-        goal=f"Find comprehensive information about {company1}.",
-        backstory="Expert business intelligence analyst.",
-        tools=[company_web_search, company_financial_data],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-        max_iter=4,
-    )
-
-    researcher2 = Agent(
-        role=f"Company Intelligence Researcher ({company2})",
-        goal=f"Find comprehensive information about {company2}.",
-        backstory="Expert business intelligence analyst.",
-        tools=[company_web_search, company_financial_data],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-        max_iter=4,
-    )
-
-    analyst = Agent(
-        role="Strategic Business Analyst",
-        goal=f"Compare {company1} and {company2} across financials, market position, recent news, strengths/weaknesses, and recommend which is more favorable to sell to.",
-        backstory="Former McKinsey consultant turned sales strategist.",
-        tools=[],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-
-    formatter = Agent(
-        role="Pre-Meeting Brief Specialist",
-        goal="Format the comparison into strict JSON.",
-        backstory="Meticulous technical writer. Always outputs valid JSON.",
-        tools=[],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-
-    task1 = Task(
-        description=(
-            f"Research {company1} thoroughly using targeted web searches.\n\n"
-            f"IMPORTANT: You MUST run searches ONE AT A TIME. Do NOT call multiple "
-            f"tools simultaneously. Run one search, wait for the results, read them, "
-            f"then run the next search. This is critical to avoid overloading the model.\n\n"
-            f"Execute these searches sequentially, one after another:\n"
-            f"  Step 1: Search for '{company1} latest news 2025 2026' — wait for results.\n"
-            f"  Step 2: Fetch financial data for {company1}.\n\n"
-            f"After ALL searches are complete, compile ALL findings into a structured "
-            f"research summary. For every fact, note the source URL. "
-            f"Note how many search results were returned total.\n\n"
-            f"Once all searches are complete, write a summary of maximum 200 words as plain "
-            f"sentences only. No markdown, no headers, no bullet points, no lists. Just plain "
-            f"prose. Do not call any more tools."
-        ),
-        expected_output="Detailed research summary including company overview, recent news items, financial snapshot. Include sources.",
-        agent=researcher1,
-    )
-
-    task2 = Task(
-        description=(
-            f"Research {company2} thoroughly using targeted web searches.\n\n"
-            f"IMPORTANT: You MUST run searches ONE AT A TIME. Do NOT call multiple "
-            f"tools simultaneously. Run one search, wait for the results, read them, "
-            f"then run the next search. This is critical to avoid overloading the model.\n\n"
-            f"Execute these searches sequentially, one after another:\n"
-            f"  Step 1: Search for '{company2} latest news 2025 2026' — wait for results.\n"
-            f"  Step 2: Fetch financial data for {company2}.\n\n"
-            f"After ALL searches are complete, compile ALL findings into a structured "
-            f"research summary. For every fact, note the source URL. "
-            f"Note how many search results were returned total.\n\n"
-            f"Once all searches are complete, write a summary of maximum 200 words as plain "
-            f"sentences only. No markdown, no headers, no bullet points, no lists. Just plain "
-            f"prose. Do not call any more tools."
-        ),
-        expected_output="Detailed research summary including company overview, recent news items, financial snapshot. Include sources.",
-        agent=researcher2,
-    )
-
-    task3 = Task(
-        description=(
-            f"Compare {company1} and {company2} based on the research. {length_instruction}"
-            + (f"\n\nADDITIONAL FOCUS FROM USER: {custom_prompt}\nMake sure your analysis specifically addresses this angle. Weave it into the relevant sections." if custom_prompt else "")
-        ),
-        expected_output="Strategic analysis comparing financials, market position, news, strengths/weaknesses, and a final recommendation.",
-        agent=analyst,
-        context=[task1, task2],
-    )
-
-    task4 = Task(
-        description=(
-            f"Format the comparison into a single valid JSON object.\n"
-            f"Keys must be exactly: company1_summary, company2_summary, financial_comparison, market_position, recent_developments, strengths_weaknesses, recommendation.\n"
-            f"Each section must have: 'content' ({length_instruction}), 'confidence' ('high', 'medium', or 'low'), and 'sources' (list of URLs).\n"
-            f"CRITICAL: Output pure JSON only.\n"
-            f"CRITICAL: Only include URLs in sources that were actually returned by the research agents. Do NOT invent, fabricate, or guess URLs. If you don't have a real URL for a section, use an empty list [] for sources. Never use example.com or placeholder URLs."
-        ),
-        expected_output="A single valid JSON object with the requested keys.",
-        agent=formatter,
-        context=[task3],
-    )
-
-    return Crew(
-        agents=[researcher1, researcher2, analyst, formatter],
-        tasks=[task1, task2, task3, task4],
-        process=Process.sequential,
-        verbose=True,
-    )
+    return prompt, ""
 
 
-def run_comparison(company1: str, company2: str, length: str = "medium", custom_prompt: str = "") -> dict:
-    crew = build_comparison_crew(company1, company2, length, custom_prompt)
-    result = crew.kickoff()
-
-    raw_output = result.raw if hasattr(result, "raw") else str(result)
-    brief_json = _extract_json(raw_output)
-
-    sources_used = []
-    if isinstance(brief_json, dict):
-        for section_data in brief_json.values():
-            if isinstance(section_data, dict):
-                sources_used.extend(section_data.get("sources", []))
-    sources_used = list(set(sources_used))
-
-    limited_data = False
-    if not sources_used or len(sources_used) < 2:
-        limited_data = True
-
-    return {
-        "brief": brief_json,
-        "sources_used": sources_used,
-        "limited_data": limited_data,
-        "raw_output": raw_output,
-    }
-
-
-def _extract_json(text: str) -> dict:
+def run_brief(company_name, length, sections, user_context, model_id=None, deep_mind=False, full_query="", pdf_context=""):
     """
-    Extracts and parses JSON from agent output.
-    Handles cases where the model wraps JSON in markdown code fences.
+    Generate a pre-meeting intelligence brief.
+    Returns (brief_dict, total_search_results) tuple.
     """
-    # Strip markdown fences if present
-    cleaned = re.sub(r"```(?:json)?", "", text).strip()
-    cleaned = cleaned.strip("`").strip()
+    # Configure search depth by length
+    if length == 'short':
+        tools_module._search_max_results = 3
+    elif length == 'medium':
+        tools_module._search_max_results = 5
+    else:
+        tools_module._search_max_results = 6
 
-    # Try direct parse first
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
+    # Reset aggregate search counter for this request (thread-local in dev)
+    tools_module._search_total_results = 0
 
-    # Try finding a JSON object substring
-    match = re.search(r"\{[\s\S]*\}", cleaned)
-    if match:
+    # Validate and normalise model ID — reject fake/invalid model names
+    if model_id and model_id not in ALL_VALID_MODELS:
+        print(f"[PitchPulse] Unknown model '{model_id}', falling back to default.")
+        model_id = None
+    chosen_model = model_id or DEFAULT_MODEL
+
+    # LiteLLM always needs "groq/<model_id>" to route to Groq.
+    # groq/compound-mini already has the prefix; everything else needs it prepended.
+    if chosen_model.startswith("groq/"):
+        model_path = chosen_model          # already prefixed
+    else:
+        model_path = f"groq/{chosen_model}"  # e.g. groq/meta-llama/llama-4-scout-17b-16e-instruct
+
+    # Per-model char budgets — sized to stay comfortably under each model's TPM limit.
+    # llama-4-scout:        30K TPM → very generous
+    # llama-3.3-70b:        12K TPM → moderate
+    # Pro (120b/qwen/etc):  8K TPM  → still fine with our payload sizes
+    if chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
+        _search_per_query_cap = 4000
+        _pdf_cap              = 5500
+        _financial_cap        = 1500
+    elif chosen_model == "llama-3.3-70b-versatile":
+        _search_per_query_cap = 2500
+        _pdf_cap              = 3500
+        _financial_cap        = 1200
+    else:
+        # Pro models (gpt-oss-120b, qwen3-32b, compound-mini)
+        _search_per_query_cap = 3000
+        _pdf_cap              = 4500
+        _financial_cap        = 1400
+
+    # ── Build context instruction from the user's full natural query ──────────
+    pitch_context = full_query or user_context or ""
+
+    # Extract a short label for what the rep is selling (used inline in JSON schema)
+    product_label = "the rep's product/solution"
+    if pdf_context and "===" not in pdf_context[:100]:
+        # First line of the PDF might say the product name
+        first_line = pdf_context.split('\n')[0][:80].strip()
+        if first_line:
+            product_label = first_line
+
+    if pitch_context:
+        context_instruction = f"""━━━ REP'S SALES CONTEXT (READ THIS FIRST) ━━━
+Query: "{pitch_context}"
+{f'Product documentation is also included below.' if pdf_context else ''}
+
+You are NOT writing a generic company profile. You are writing a pre-meeting brief for a SPECIFIC rep with a SPECIFIC product to sell. This context must shape EVERY sentence you write.
+
+Rules:
+1. Each insight must answer: "How does this help or hurt the rep close THIS specific deal?"
+2. When mentioning a company fact, always add: "...which means [implication for the rep's pitch]"
+3. Generic statements like "Nvidia is a large company" are FORBIDDEN unless they contain a specific implication for the rep.
+4. If a section has no obvious connection to the rep's pitch — say so briefly, don't pad it.
+━━━ END CONTEXT ━━━"""
+    else:
+        context_instruction = ""
+
+    if pdf_context:
+        context_instruction += f"""
+
+━━━ PRODUCT DOCUMENTATION ━━━
+The rep uploaded a product PDF. Key rules:
+- Treat it as your primary source for the rep's VALUE PROPOSITION.
+- In EVERY section (not just talking points), ask: "Which specific feature/metric from this PDF addresses what I just found about the company?"
+- Minimum: 2 explicit references to the PDF content in talking_points and at least 1 in watch_out_for.
+- Quote specific metrics, percentages, integration capabilities, or customer results from the PDF.
+━━━ END PDF RULES ━━━"""
+
+    if deep_mind:
+        context_instruction += """
+
+DEEP ANALYSIS MODE: First-principles reasoning. Non-obvious connections. Contrarian insights. Think like a McKinsey partner 48 hours before the most important pitch of the year. No filler. Every sentence must earn its place."""
+
+    # Tailor the final 2 search queries to the rep's specific pitch when context exists
+    if pitch_context:
+        # Extract keywords from pitch context for targeted searches
+        context_keywords = pitch_context[:200]
+    else:
+        context_keywords = ""
+
+    length_guide = {
+        "short": "Write 2-3 sentences per section. Include 3-5 items per list. Total ~800 words.",
+        "medium": "Write 3-5 sentences with specific data points per section. Include 5-7 items per list. Each item 2-3 sentences. Total ~1500 words.",
+        "long": "Write comprehensive multi-paragraph analysis (4-8 sentences minimum) per section. Include 7-12 items per list with 3-5 sentence explanations including names, numbers, dates, and strategic implications. Total ~3000+ words. This is a DEEP DIVE."
+    }
+    depth = length_guide.get(length, length_guide["medium"])
+
+    if length == 'short':
+        length_instruction = "Be brief. Max 2-3 bullet points per section. Max 40 words per section."
+        output_instruction = "Each section: max 2 bullet points, max 30 words per bullet. Max 2 items per array."
+        items_min = "2"
+    elif length == 'medium':
+        length_instruction = "Be moderate. Max 1 short paragraph per section."
+        output_instruction = "Each section: max 1 short paragraph, max 60 words. Max 4 items per array."
+        items_min = "4"
+    else:
+        length_instruction = "Be thorough. Full analysis per section with specifics."
+        output_instruction = "Each section: full analysis, no word limit. Include all relevant items."
+        items_min = "7"
+
+    sections_count = len(sections) if sections else 10
+    if sections_count > 7:
+        per_section_limit = "3 items max per section, 50 words max per item"
+    elif sections_count > 4:
+        per_section_limit = "4 items max per section, 70 words max per item"
+    else:
+        per_section_limit = "6 items max per section, 100 words max per item"
+
+    # ── Run tools directly (bypasses LLM tool-calling entirely) ──────────────
+    financial_overview = company_financial_data._run(company_name)[:_financial_cap]
+
+    # Base queries always run
+    search_queries = [
+        f"{company_name} latest news announcements 2024 2025",
+        f"{company_name} revenue earnings financial performance funding",
+        f"{company_name} leadership changes executive appointments",
+    ]
+    # 4th query: tailor to the rep's specific pitch angle if context exists
+    if context_keywords:
+        search_queries.append(
+            f"{company_name} {context_keywords[:100]} strategy investment challenges"
+        )
+    else:
+        search_queries.append(
+            f"{company_name} product launches partnerships strategic initiatives competitors"
+        )
+
+    search_results = []
+    for q in search_queries:
+        res = company_web_search._run(q)
+        # Cap each result block per model token budget
+        search_results.append(f"### {q}\n{res[:_search_per_query_cap]}\n")
+
+    # Append PDF product context (capped to model budget)
+    pdf_section = ""
+    if pdf_context:
+        pdf_section = f"\n\n=== PRODUCT DOCUMENTATION (rep's PDF) ===\n{pdf_context[:_pdf_cap]}"
+
+    compiled_research = (
+        f"=== FINANCIAL OVERVIEW ===\n{financial_overview}\n\n"
+        f"=== WEB SEARCH RESULTS ===\n" + "\n".join(search_results)
+        + pdf_section
+    )
+
+    # Capture total results for the caller
+    total_search_results = tools_module._search_total_results
+
+    # ── CrewAI multi-agent synthesis ─────────────────────────────────────────
+    max_retries = 3
+    last_error = None
+    inputs = {}
+
+    for attempt in range(max_retries):
         try:
-            return json.loads(match.group(0))
+            # Rotate API key on every attempt — spreads load across both keys
+            current_key = _next_api_key()
+            print(f"[PitchPulse] Using API key ending ...{current_key[-4:]} (attempt {attempt + 1}/{max_retries})")
+
+            # Scout (30K TPM) can afford 4500 output tokens; tighter models get 3500.
+            _max_out = 4500 if "scout" in chosen_model or "llama-4" in chosen_model else 3500
+            llm = LLM(
+                model=model_path,
+                api_key=current_key,
+                max_tokens=_max_out,
+                temperature=0.1
+            )
+
+            researcher = Agent(
+                role="Senior Company Intelligence Researcher",
+                goal=f"Synthesize the compiled, current intelligence about {company_name}",
+                backstory=(
+                    "You are a former McKinsey researcher turned competitive intelligence specialist. "
+                    "You analyze provided raw search and financial data with rigorous attention to detail. "
+                    "You extract recent news, financial indicators, social media sentiment, leadership changes, "
+                    "job postings, product launches, and competitor moves. "
+                    "You always cite every source URL. You synthesize into a structured, actionable report."
+                ),
+                tools=[],
+                llm=llm,
+                verbose=False,
+                max_iter=3
+            )
+
+            analyst = Agent(
+                role="Strategic Sales Intelligence Analyst",
+                goal="Transform raw research into deeply actionable, meeting-ready sales intelligence",
+                backstory=(
+                    "You are a 20-year enterprise sales veteran who has closed $500M+ in deals. "
+                    "You know exactly what a rep needs to walk into a meeting fully prepared. "
+                    "You identify specific talking points with conversation starters, "
+                    "hidden risks that could derail a deal, buying signals that indicate urgency, "
+                    "political dynamics in the org chart, budget cycle indicators, "
+                    "and competitive threats. You think like the buyer AND the seller. "
+                    "You provide SPECIFIC, ACTIONABLE advice — not generic platitudes. "
+                    "Every insight must contain a specific fact, name, or number."
+                ),
+                tools=[],
+                llm=llm,
+                verbose=False,
+                max_iter=3
+            )
+
+            formatter = Agent(
+                role="Pre-Meeting Brief Specialist",
+                goal="Format analysis into a richly detailed, perfectly structured JSON brief",
+                backstory=(
+                    "You produce detailed, structured JSON briefs that give sales reps a genuine competitive edge. "
+                    "You never include markdown fences. You always output valid JSON and nothing else. "
+                    "You ensure EVERY section has substantial content — no empty strings unless truly no data exists. "
+                    "You write in a direct, confident tone. "
+                    "For 'long' length briefs, you MUST write extensively — "
+                    "each content field should be multiple sentences, each list item should have detailed explanations."
+                ),
+                tools=[],
+                llm=llm,
+                verbose=False,
+                max_iter=3
+            )
+
+            task1 = Task(
+                description=f"""
+Synthesize the compiled raw research about {company_name} with the depth of a McKinsey analyst.
+
+{context_instruction}
+
+COMPILED RAW RESEARCH:
+{compiled_research}
+
+Synthesize this raw data into a highly structured report covering:
+1. Recent news and press releases (last 30-60 days) — include specific headlines, dates, dollar figures
+2. Financial performance, earnings, revenue, funding — cite actual numbers
+3. Social media / employee sentiment — Glassdoor themes, Reddit sentiment, analyst opinions
+4. C-suite and VP-level leadership changes in last 6 months — names, titles, implications
+5. Strategic job postings — what open roles reveal about priorities and spend
+6. New product launches, features, platform changes — dates and market reception
+7. Competitor moves that directly affect this company
+8. Partnerships, acquisitions, strategic initiatives
+
+IF the PRODUCT DOCUMENTATION section exists in the compiled research:
+- Identify every place where {company_name}'s challenges, priorities, or recent moves
+  DIRECTLY map to a capability described in the product documentation.
+- Flag these matches explicitly as "PRODUCT FIT: <company challenge> ↔ <product capability>"
+  so the next analyst agent can build precise talking points.
+
+Brief length: {length_instruction}
+Cite EVERY source with URL and date. Include specific numbers, names, and quotes.
+Output constraint: {per_section_limit}
+""",
+                expected_output="Structured research summary with explicit PRODUCT FIT flags. Bullet points. Max 800 words.",
+                agent=researcher
+            )
+
+            task2 = Task(
+                description=f"""
+You are preparing the rep for the most important meeting of their quarter with {company_name}.
+
+{context_instruction}
+
+ANALYSIS REQUIRED ({length} brief):
+
+━━━ 1. TALKING POINTS ({'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} points) ━━━
+Each talking point MUST follow this exact 3-part structure:
+  • HOOK: One specific, verifiable fact about {company_name} from the research (include a number, name, or date)
+  • BRIDGE: Exactly HOW the rep's product/solution addresses or capitalises on that specific fact
+  • OPENER: A conversation starter that references BOTH the company fact AND the product/solution
+    Example format: "I saw [specific fact about company] — we've been helping teams solve exactly this with [specific feature]. Curious how you're thinking about it."
+
+BAD talking point (reject these): "Nvidia is a large GPU company investing in AI."
+GOOD talking point: "Nvidia's Blackwell GPU yield rate at TSMC dropped below 60% in Q4 — WaferSense AI's real-time defect classification maps directly onto that problem. Opener: 'We noticed the Blackwell yield press reports — we're working with TSMC-adjacent fabs on exactly this problem. Would love to show you what we're seeing.'"
+
+If a PRODUCT DOCUMENTATION section exists in the research, you MUST quote at least one specific metric or feature from it in the talking points.
+
+━━━ 2. WATCH OUT FOR ({'2-3' if length == 'short' else '3-5' if length == 'medium' else '5-8'} risks) ━━━
+Each risk: specific trigger + evidence from the research + one concrete mitigation action.
+
+━━━ 3. LEADERSHIP CHANGES ━━━
+Names, titles, previous companies, and what the change signals about buying priorities.
+
+━━━ 4. COMPETITOR ACTIVITY ━━━
+Specific actions taken by competitors, with evidence and implications for this deal.
+
+━━━ 5. RECENT LAUNCHES ━━━
+Product/service launches with dates, market reception, and deal relevance.
+
+━━━ 6. JOB SIGNALS (if data exists) ━━━
+Roles that reveal strategic spend — and how the rep can reference them in conversation.
+
+Be RUTHLESSLY specific. "Build rapport" and "mention ROI" are USELESS. Every sentence must contain a name, number, or date.
+For a "{length}" brief, produce ALL the requested points (no fewer than the minimum counts listed above).
+""",
+                expected_output=f"Sales analysis with {'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} talking points, each with HOOK + BRIDGE + OPENER. Bullet points. No preamble.",
+                agent=analyst
+            )
+
+            task3 = Task(
+                description=f"""You are formatting a pre-meeting sales brief for {company_name}.
+Output ONLY valid JSON — no markdown, no explanation, nothing before or after the object.
+
+{context_instruction}
+
+LENGTH: {length} brief — {output_instruction}
+
+PITCH-AWARENESS RULES (apply to EVERY section):
+- Every "content" field must end with one sentence explaining what this means for the rep's specific pitch.
+- Every list item must contain at least one specific fact (number, name, date, or quoted metric).
+- The word "generic" should never describe any sentence you write.
+
+OUTPUT THIS EXACT STRUCTURE:
+
+{{
+  "company_name": "{company_name}",
+  "generated_at": "<current ISO timestamp>",
+  "rep_pitch_context": "<1-sentence summary of what the rep is selling and to whom, extracted from the query>",
+  "summary": {{
+    "content": "<Company overview: what they do, current momentum, why they matter to the rep's pitch RIGHT NOW. {('2-3' if length == 'short' else '3-4' if length == 'medium' else '5-7')} sentences. Last sentence: why this company is a compelling target for the rep's specific solution.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"]
+  }},
+  "news": {{
+    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4-5')} sentences: which recent news items are most relevant to the rep's pitch and why.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"],
+    "items": [{{"headline": "<exact headline>", "summary": "<what happened + why it matters for this specific deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>", "url": "<url>", "date": "<YYYY-MM-DD>", "pitch_relevance": "<one sentence: direct implication for the rep's pitch>"}}]
+  }},
+  "financials": {{
+    "content": "<{('2' if length == 'short' else '3-4' if length == 'medium' else '5-6')} sentences: key financial metrics + what the budget/growth trajectory means for closing a deal with this company.>",
+    "confidence": "high|medium|low",
+    "sources": [],
+    "snapshot": {{
+      "revenue": "<e.g. $81.6B>", "growth": "<e.g. +85% YoY>", "funding": "<if startup>",
+      "market_cap": "<e.g. $2.1T>", "employees": "<headcount>", "disclaimer": "Verify with official filings"
+    }}
+  }},
+  "social_sentiment": {{
+    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4')} sentences: employee/public sentiment + whether internal morale or public perception creates an opening or risk for the rep.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"],
+    "sentiment": "positive|neutral|negative|mixed"
+  }},
+  "talking_points": {{
+    "content": "<2-sentence overview of the core pitch angle — what is the single strongest reason this company needs the rep's product right now?>",
+    "confidence": "high|medium|low",
+    "items": [
+      {{
+        "point": "<HOOK: one specific verifiable fact about {company_name} — must include a number, name, or date>",
+        "why_it_matters": "<BRIDGE: exactly how the rep's product addresses this specific fact, citing a specific product feature or metric. Then OPENER: exact words the rep can say in the first 30 seconds of the meeting, referencing both the company fact and the product capability.>"
+      }}
+    ]
+  }},
+  "watch_out_for": {{
+    "content": "<{('1-2' if length == 'short' else '2-3' if length == 'medium' else '3-4')} sentences: what could kill this deal + how to pre-empt each risk.>",
+    "confidence": "high|medium|low",
+    "items": [{{"risk": "<specific named risk with evidence>", "context": "<why this is a real risk for THIS deal + a concrete mitigation move the rep can make before or during the meeting>"}}]
+  }},
+  "leadership_changes": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which personnel changes create new buying opportunities or new risks.>",
+    "confidence": "high|medium|low",
+    "items": [{{"name": "<full name>", "role": "<title>", "change": "<what changed, when, where from, and what this signals about budget/priorities for the rep>", "date": "<YYYY-MM-DD>"}}]
+  }},
+  "job_signals": {{
+    "content": "<{('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences: what the hiring patterns reveal about where the company is spending — and whether that overlaps with the rep's pitch.>",
+    "confidence": "high|medium|low",
+    "items": [{{"role": "<job title>", "signal": "<what this role signals about company priorities + one specific way the rep can reference this hiring trend in their pitch>"}}]
+  }},
+  "recent_launches": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which launches create integrations opportunities or competitive pressure relevant to the rep's solution.>",
+    "confidence": "high|medium|low",
+    "items": [{{"name": "<product/feature name>", "date": "<YYYY-MM-DD>", "significance": "<market impact + direct relevance to the rep's pitch in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
+  }},
+  "competitor_activity": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: competitive landscape + how competitor moves create urgency or threats for the rep.>",
+    "confidence": "high|medium|low",
+    "items": [{{"competitor": "<company>", "action": "<specific move with date/evidence>", "impact": "<effect on {company_name} + implication for the rep's deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
+  }}
+}}
+
+HARD RULES:
+1. talking_points MUST have {'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} items — populate these FIRST before anything else.
+2. No section "content" field may be a generic company description — every content field must end with a pitch implication.
+3. "watch_out_for" keys: "risk" and "context" only.
+4. "job_signals" keys: "role" and "signal" only.
+5. If no data exists for a section: content = "No data found", confidence = "low", items = [].
+6. Complete the ENTIRE object — if token budget is tight, shorten social_sentiment and job_signals last.
+7. Never wrap in markdown. Output starts with {{ and ends with }}.
+""",
+                expected_output="Valid complete JSON object matching the schema exactly. Nothing else.",
+                agent=formatter
+            )
+
+            crew = Crew(
+                agents=[researcher, analyst, formatter],
+                tasks=[task1, task2, task3],
+                process=Process.sequential,
+                verbose=False
+            )
+            result = crew.kickoff(inputs=inputs)
+            return _extract_json(str(result)), total_search_results
+
+        except Exception as e:
+            last_error = e
+            error_str = str(e).lower()
+            if any(x in error_str for x in ['rate_limit', '429', 'ratelimit', 'tokens per minute', 'tpm']):
+                if attempt < max_retries - 1:
+                    wait = (attempt + 1) * 6
+                    print(f"[PitchPulse] Rate limited. Waiting {wait}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait)
+                    continue
+            raise e
+
+    raise last_error
+
+
+def _repair_truncated_json(text):
+    """
+    Attempt to close a truncated JSON string so it can be parsed.
+    Works by counting open braces/brackets and appending the missing closers.
+    """
+    # Count open structures
+    depth_brace = 0
+    depth_bracket = 0
+    in_string = False
+    escape_next = False
+
+    for ch in text:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '{':
+            depth_brace += 1
+        elif ch == '}':
+            depth_brace -= 1
+        elif ch == '[':
+            depth_bracket += 1
+        elif ch == ']':
+            depth_bracket -= 1
+
+    # If we're inside a string, close it
+    suffix = ''
+    if in_string:
+        suffix += '"'
+    # Close open arrays/objects in reverse order (approximate)
+    suffix += ']' * max(0, depth_bracket)
+    suffix += '}' * max(0, depth_brace)
+    return text + suffix
+
+
+def _extract_json(text):
+    text = text.strip()
+
+    # Strip markdown fences
+    if '```' in text:
+        text = re.sub(r'```(?:json)?\n?', '', text).strip()
+
+    # Find outermost JSON object
+    start = text.find('{')
+    if start == -1:
+        raise ValueError("No JSON object found in output")
+
+    candidate = text[start:]
+
+    # 1. Try the full text as-is (happy path)
+    end = candidate.rfind('}')
+    if end != -1:
+        try:
+            return json.loads(candidate[:end + 1])
         except json.JSONDecodeError:
             pass
 
-    # Return error structure if parsing fails
-    return {
-        "parse_error": True,
-        "raw": text[:500],
-        "message": "Failed to parse agent output as JSON. See raw_output field for debugging."
-    }
+    # 2. Try progressive truncation from the last closing brace inward
+    for i in range(len(candidate) - 1, 0, -1):
+        if candidate[i] == '}':
+            try:
+                return json.loads(candidate[:i + 1])
+            except Exception:
+                continue
+
+    # 3. Try to repair a truncated JSON (model hit token limit mid-string)
+    repaired = _repair_truncated_json(candidate)
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        pass
+
+    # 4. Try repair + progressive truncation on the repaired version
+    for i in range(len(repaired) - 1, 0, -1):
+        if repaired[i] == '}':
+            try:
+                return json.loads(repaired[:i + 1])
+            except Exception:
+                continue
+
+    raise ValueError(
+        f"Could not parse JSON even after repair attempt.\nPreview: {candidate[:300]}"
+    )

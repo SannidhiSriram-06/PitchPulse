@@ -1,33 +1,37 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001',
-    timeout: 120000,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001',
+  timeout: 120000
 })
 
-// Auto-attach token to every request
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
+// Attach Clerk JWT to every request
+api.interceptors.request.use(async (config) => {
+  try {
+    const { getToken } = window.__clerk__ || {}
+    if (getToken) {
+      const token = await getToken()
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`
+      }
     }
-    return config
+  } catch (e) {
+    console.error('Token fetch failed:', e)
+  }
+  return config
 })
 
-// Auto-redirect to login on 401
+// Redirect to login on 401 — but skip for public share routes
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            const isSharePage = window.location.pathname.startsWith('/brief/share/')
-            if (!isSharePage) {
-                localStorage.removeItem('token')
-                localStorage.removeItem('user')
-                window.location.href = '/login'
-            }
-        }
-        return Promise.reject(error)
+  (response) => response,
+  (error) => {
+    const url = error.config?.url || ''
+    const isPublic = url.startsWith('/api/share/')
+    if (error.response?.status === 401 && !isPublic) {
+      window.location.href = '/sign-in'
     }
+    return Promise.reject(error)
+  }
 )
 
 export default api
