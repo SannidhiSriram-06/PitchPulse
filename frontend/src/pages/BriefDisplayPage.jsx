@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
+import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2, Mail } from 'lucide-react'
 import api from '../lib/api'
 import Layout from '../components/Layout'
 import ExpandableTabs from '../components/ExpandableTabs'
@@ -24,6 +24,7 @@ export default function BriefDisplayPage() {
   const [showSources, setShowSources] = useState(false)
   const [copiedTooltip, setCopiedTooltip] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [emailing, setEmailing] = useState(false)
 
   useEffect(() => {
     const fetchBrief = async () => {
@@ -55,6 +56,18 @@ export default function BriefDisplayPage() {
       setCopiedTooltip(true)
       setTimeout(() => setCopiedTooltip(false), 2000)
     } catch { toast.error('Failed to copy share link') }
+  }
+
+  const sendEmail = async () => {
+    setEmailing(true)
+    try {
+      await api.post(`/api/briefs/${id}/email`)
+      toast.success('Brief sent to your email!')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send email')
+    } finally {
+      setEmailing(false)
+    }
   }
 
   const deleteBrief = async () => {
@@ -400,6 +413,14 @@ export default function BriefDisplayPage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </MetalIconButton>
+              <MetalIconButton
+                onClick={sendEmail}
+                variant="outline"
+                title="Send to email"
+                disabled={emailing}
+              >
+                <Mail className={`w-4 h-4 text-tx-secondary ${emailing ? 'animate-pulse' : ''}`} />
               </MetalIconButton>
               <MetalIconButton
                 onClick={toggleSave}

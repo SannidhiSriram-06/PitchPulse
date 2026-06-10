@@ -612,6 +612,25 @@ def create_app():
             "share_url": f"{Config.FRONTEND_URL}/brief/share/{brief.share_token}"
         })
 
+    @app.route('/api/briefs/<int:brief_id>/email', methods=['POST'])
+    @require_auth
+    def email_brief(brief_id):
+        brief = Brief.query.get_or_404(brief_id)
+        if brief.user_id != g.current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        from email_service import send_manual_brief
+        success = send_manual_brief(
+            to_email=g.current_user.email,
+            display_name=g.current_user.display_name,
+            company_name=brief.company_name,
+            brief_dict=json.loads(brief.brief_json)
+        )
+        if success:
+            return jsonify({"message": "Email sent successfully"})
+        else:
+            return jsonify({"error": "Failed to send email"}), 500
+
     @app.route('/api/share/<token>', methods=['GET'])
     def get_shared_brief(token):
         brief = Brief.query.filter_by(share_token=token).first_or_404()
