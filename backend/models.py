@@ -51,6 +51,7 @@ class ScheduledBrief(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
     company_name = db.Column(db.String(255), nullable=False)
+    prompt = db.Column(db.Text, nullable=True)
     scheduled_for = db.Column(db.DateTime, nullable=False)
     recurring = db.Column(db.String(50), nullable=True)
     length = db.Column(db.String(20), default='medium')

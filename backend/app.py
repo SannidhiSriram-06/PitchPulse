@@ -18,6 +18,14 @@ from scheduler import check_and_run_due_briefs
 import tools
 
 
+def utc_iso(dt):
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        return f"{dt.isoformat()}Z"
+    return dt.isoformat()
+
+
 # ── JWKS caching ──────────────────────────────────────────────────────────────
 
 @lru_cache(maxsize=1)
@@ -514,7 +522,7 @@ def create_app():
             result.append({
                 "id": b.id,
                 "company_name": b.company_name,
-                "created_at": b.created_at.isoformat(),
+                "created_at": utc_iso(b.created_at),
                 "length_used": b.length_used,
                 "saved": b.saved,
                 "limited_data": b.limited_data,
@@ -541,7 +549,7 @@ def create_app():
             "generation_time_ms": brief.generation_time_ms,
             "limited_data": brief.limited_data,
             "share_token": brief.share_token,
-            "created_at": brief.created_at.isoformat()
+            "created_at": utc_iso(brief.created_at)
         })
 
     @app.route('/api/briefs/<int:brief_id>/save', methods=['PATCH'])
@@ -638,7 +646,7 @@ def create_app():
             "company_name": brief.company_name,
             "brief": json.loads(brief.brief_json),
             "generation_time_ms": brief.generation_time_ms,
-            "created_at": brief.created_at.isoformat()
+            "created_at": utc_iso(brief.created_at)
         })
 
     @app.route('/api/watchlist', methods=['GET'])
@@ -653,8 +661,8 @@ def create_app():
             "folder_tag": i.folder_tag,
             "user_notes": i.user_notes,
             "default_length": i.default_length,
-            "last_briefed_at": i.last_briefed_at.isoformat() if i.last_briefed_at else None,
-            "added_at": i.added_at.isoformat()
+            "last_briefed_at": utc_iso(i.last_briefed_at),
+            "added_at": utc_iso(i.added_at)
         } for i in items]})
 
     @app.route('/api/watchlist', methods=['POST'])
@@ -729,11 +737,12 @@ def create_app():
         return jsonify([{
             "id": i.id,
             "company_name": i.company_name,
-            "scheduled_for": i.scheduled_for.isoformat(),
+            "prompt": i.prompt,
+            "scheduled_for": utc_iso(i.scheduled_for),
             "recurring": i.recurring,
             "length": i.length,
             "status": i.status,
-            "last_run_at": i.last_run_at.isoformat() if i.last_run_at else None,
+            "last_run_at": utc_iso(i.last_run_at),
             "brief_id": i.brief_id
         } for i in items])
 
@@ -768,14 +777,31 @@ def create_app():
         if recurring not in [None, "daily", "weekly"]:
             return jsonify({"error": "Invalid recurring value. Must be null, 'daily', or 'weekly'"}), 400
 
-        company_name = _sanitize_company(data.get("company_name", ""))
+        prompt = data.get("prompt", "")
+        company_name = data.get("company_name", "")
+
+        if prompt.strip():
+            from agents import extract_company_and_context
+            extracted_company, extracted_context = extract_company_and_context(prompt)
+            sanitized_company = _sanitize_company(extracted_company)
+            if not sanitized_company:
+                words = prompt.strip().split()
+                if len(words) <= 4:
+                    sanitized_company = _sanitize_company(prompt.strip())
+            if not sanitized_company:
+                return jsonify({"error": "Couldn't identify a company in your prompt. E.g. 'Research Nvidia...'"}), 400
+            company_name = sanitized_company
+        else:
+            company_name = _sanitize_company(company_name)
+
         if not company_name:
-            return jsonify({"error": "Invalid company_name"}), 400
+            return jsonify({"error": "Invalid company_name or prompt"}), 400
 
         sections = data.get("sections")
         sb = ScheduledBrief(
             user_id=g.current_user.id,
             company_name=company_name,
+            prompt=prompt or None,
             scheduled_for=scheduled_for,
             recurring=recurring,
             length=data.get("length", "medium"),
@@ -919,7 +945,25 @@ def create_app():
     return app
 
 
+def start_scheduler_thread(app):
+    import threading
+    import time
+    def run_scheduler_loop():
+        print("[Scheduler] Background scheduler loop started")
+        while True:
+            try:
+                from scheduler import check_and_run_due_briefs
+                check_and_run_due_briefs(app)
+            except Exception as e:
+                print(f"[Scheduler] Loop error: {e}")
+            time.sleep(30)
+    thread = threading.Thread(target=run_scheduler_loop, daemon=True)
+    thread.start()
+
+
 app = create_app()
 
 if __name__ == '__main__':
+    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        start_scheduler_thread(app)
     app.run(host='0.0.0.0', port=5001, debug=True)

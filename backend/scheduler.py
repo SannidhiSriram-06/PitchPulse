@@ -14,7 +14,7 @@ def check_and_run_due_briefs(app):
             # Only upper bound — any pending task whose time has passed is eligible.
             # Removing the min_time lower bound prevents tasks from being permanently
             # lost when the cron trigger is delayed by more than a few minutes.
-            max_time = now + timedelta(minutes=2)
+            max_time = now + timedelta(minutes=3)
 
             due_briefs = ScheduledBrief.query.filter(
                 ScheduledBrief.status == 'pending',
@@ -55,7 +55,13 @@ def check_and_run_due_briefs(app):
 
                     # Run brief — only increment counter on success
                     sections = json.loads(sb.sections) if sb.sections else None
-                    brief_dict, _ = run_brief(sb.company_name, sb.length, sections, user.user_context)
+                    brief_dict, _ = run_brief(
+                        sb.company_name,
+                        sb.length,
+                        sections,
+                        user.user_context,
+                        full_query=sb.prompt or sb.company_name
+                    )
 
                     # Now increment the counter
                     user.briefs_used_this_hour += 1

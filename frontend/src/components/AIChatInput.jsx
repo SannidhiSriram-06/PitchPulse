@@ -15,7 +15,8 @@ export default function AIChatInput({
   pdfFile,
   onPdfSelect,
   onPdfClear,
-  userTier = 'free'
+  userTier = 'free',
+  submitLabel = 'Generate →'
 }) {
   const fileRef = useRef(null)
   const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0]
@@ -118,7 +119,7 @@ export default function AIChatInput({
           disabled={generating || !value.trim()}
           className="px-4 py-1.5 bg-accent hover:bg-accent-light text-white text-xs font-bold rounded-lg transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed glow-accent-sm"
         >
-          {generating ? 'Generating…' : 'Generate →'}
+          {generating ? 'Processing…' : submitLabel}
         </button>
       </div>
     </div>

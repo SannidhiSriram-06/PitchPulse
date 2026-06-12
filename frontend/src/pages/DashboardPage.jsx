@@ -9,6 +9,8 @@ import ExpandableTabs from '../components/ExpandableTabs'
 import ShiftCard from '../components/ShiftCard'
 import StorageWidget from '../components/StorageWidget'
 import { useToast } from '../components/Toast'
+import GuidedTour from '../components/GuidedTour'
+import usePrefsStore from '../store/prefsStore'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -27,6 +29,7 @@ export default function DashboardPage() {
   const [loading, setLoading]     = useState(true)
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { tourActive, setTourActive } = usePrefsStore()
   const toast = useToast()
 
   useEffect(() => {
@@ -237,7 +240,7 @@ export default function DashboardPage() {
             <p className="text-xs text-tx-secondary">Schedule briefs to be auto-generated before your meetings</p>
           </div>
           <Link
-            to="/settings"
+            to="/brief/new"
             className="text-xs text-accent hover:underline"
           >
             Set up a scheduled brief →
@@ -274,22 +277,23 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-tx-tertiary mt-0.5">Length: {item.length}</p>
               </div>
               <div className="mt-4 pt-3 border-t border-border dark:border-[rgba(255,255,255,0.04)] flex items-center justify-between">
-                {item.brief_id && (
+                {item.brief_id ? (
                   <button
                     onClick={() => navigate(`/brief/${item.brief_id}`)}
                     className="text-xs text-accent hover:underline"
                   >
                     View brief →
                   </button>
+                ) : (
+                  <div />
                 )}
-                {item.status === 'pending' && (
-                  <button
-                    onClick={(e) => cancelScheduled(e, item.id)}
-                    className="ml-auto text-xs text-tx-tertiary hover:text-red-500 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                )}
+                <button
+                  onClick={(e) => cancelScheduled(e, item.id)}
+                  className="p-1.5 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all"
+                  title="Delete scheduled brief"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))}
@@ -300,6 +304,7 @@ export default function DashboardPage() {
 
   return (
     <Layout>
+      <GuidedTour active={tourActive} onClose={() => setTourActive(false)} />
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-5">
           <div className="flex flex-col md:flex-row md:items-center gap-5">

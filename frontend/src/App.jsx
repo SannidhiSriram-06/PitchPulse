@@ -21,11 +21,14 @@ import CommandPalette    from './components/CommandPalette'
 import PWAInstallPrompt  from './components/PWAInstallPrompt'
 import SquiCircleFilter  from './components/SquiCircleFilter'
 import ToastContainer    from './components/Toast'
+import GuidedTour        from './components/GuidedTour'
+import usePrefsStore     from './store/prefsStore'
 
 export default function App() {
   useTheme()
   const { user: clerkUser, isLoaded } = useUser()
   const { setUser, clearUser } = useAuthStore()
+  const { tourActive, setTourActive } = usePrefsStore()
 
   useEffect(() => {
     if (!isLoaded) return
@@ -33,17 +36,22 @@ export default function App() {
       api.get('/api/user/me')
         .then(res => setUser(res.data))
         .catch(() => clearUser())
+      
+      const tourCompleted = localStorage.getItem('pp_tour_completed')
+      if (!tourCompleted && !tourActive && window.location.pathname === '/dashboard') {
+        setTourActive(true)
+      }
     } else {
       clearUser()
     }
-  }, [clerkUser, isLoaded, setUser, clearUser])
+  }, [clerkUser, isLoaded, setUser, clearUser, setTourActive, tourActive])
 
   return (
     <BrowserRouter>
       <SquiCircleFilter />
       <ToastContainer />
 
-      {/* Command palette and PWA prompt only mount for authenticated users */}
+      {/* Command palette, tour, and PWA prompt only mount for authenticated users */}
       {clerkUser && <CommandPalette />}
       {clerkUser && <PWAInstallPrompt />}
 

@@ -17,3 +17,8 @@ def init_db(app):
     with app.app_context():
         import models
         db.create_all()
+        try:
+            db.session.execute(db.text("ALTER TABLE scheduled_brief ADD COLUMN prompt TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()

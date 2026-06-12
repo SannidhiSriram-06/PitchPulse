@@ -26,6 +26,14 @@ export default function SettingsPage() {
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab')
+    if (tab && ['account', 'preferences', 'billing'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [])
+
+  useEffect(() => {
     if (user) {
       setFormData({
         display_name: user.display_name || '',

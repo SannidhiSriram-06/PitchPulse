@@ -1,7 +1,9 @@
-import { Link, useLocation } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { ChevronRight, Settings, Sliders, HelpCircle, Search } from 'lucide-react'
 import { UserButton } from '@clerk/clerk-react'
 import ThemeToggleButton from './ThemeToggleButton'
+import usePrefsStore from '../store/prefsStore'
 
 const ROUTE_LABELS = {
   dashboard:  'Dashboard',
@@ -15,6 +17,17 @@ const ROUTE_LABELS = {
 
 export default function VercelNav() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { setTourActive } = usePrefsStore()
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/history?search=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery('')
+    }
+  }
 
   const getBreadcrumbs = () => {
     const parts = location.pathname.split('/').filter(Boolean)
@@ -81,8 +94,53 @@ export default function VercelNav() {
         ))}
       </div>
 
-      {/* Right: theme toggle + profile */}
-      <div className="flex items-center gap-3 shrink-0">
+      {/* Middle: Nav Links & Search */}
+      <div className="flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-5">
+          <Link to="/dashboard" className="text-xs font-semibold text-tx-secondary hover:text-tx-primary transition-colors">Dashboard</Link>
+          <Link to="/brief/new" className="text-xs font-semibold text-tx-secondary hover:text-accent transition-colors">New Brief</Link>
+          <Link to="/history" className="text-xs font-semibold text-tx-secondary hover:text-tx-primary transition-colors">History</Link>
+        </div>
+
+        <form onSubmit={handleSearchSubmit} className="hidden lg:flex items-center relative max-w-xs w-56">
+          <Search className="w-3.5 h-3.5 text-tx-tertiary absolute left-3 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search briefs..."
+            className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-accent/50 transition-colors dark:text-white"
+          />
+        </form>
+      </div>
+
+      {/* Right: theme toggle + settings + preferences + tour + profile */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            navigate('/dashboard')
+            setTourActive(true)
+          }}
+          title="Take Guided Tour"
+          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+        >
+          <HelpCircle className="w-4 h-4 text-accent" />
+        </button>
+        <Link
+          to="/settings?tab=preferences"
+          title="Preferences"
+          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+        >
+          <Sliders className="w-4 h-4" />
+        </Link>
+        <Link
+          to="/settings"
+          title="Account Settings"
+          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+        >
+          <Settings className="w-4 h-4" />
+        </Link>
         <ThemeToggleButton />
         <UserButton
           afterSignOutUrl="/"

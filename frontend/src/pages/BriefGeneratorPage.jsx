@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, ChevronDown, ChevronUp, Lock, FileText, AlertTriangle } from 'lucide-react'
+import { Sparkles, Lock, FileText, AlertTriangle, HelpCircle, Sliders, Calendar, Clock, ChevronDown, Paperclip, X, Brain } from 'lucide-react'
 import api from '../lib/api'
 import Layout from '../components/Layout'
 import useAuthStore from '../store/authStore'
 import RateLimitModal from '../components/RateLimitModal'
-import AIChatInput from '../components/AIChatInput'
 import { ALL_SECTIONS, MODELS } from '../utils/constants'
 import { useToast } from '../components/Toast'
 import { StorageWidget } from '../components/StorageWidget'
@@ -23,38 +22,44 @@ const STATUS_MESSAGES = [
 ]
 
 export default function BriefGeneratorPage() {
-  const navigate            = useNavigate()
-  const location            = useLocation()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { user, consumeBriefCredit } = useAuthStore()
-  const toast               = useToast()
+  const toast = useToast()
 
-  // Pre-fill from ?company= param (from watchlist clicks etc.)
   const initialCompany = new URLSearchParams(location.search).get('company') || ''
 
-  const [query,          setQuery]          = useState(initialCompany)
-  const [length,         setLength]         = useState(user?.default_brief_length || 'medium')
-  // Job Signals and Social Sentiment are off by default — low value for B2B sales reps
+  // mock compare mode
+  const [generationType, setGenerationType] = useState('single') // 'single' | 'compare'
+  const [meetingType, setMeetingType] = useState('') // 'cold_call' | 'first_meeting' | 'partnership' | 'renewal' | ''
+
+  const [query, setQuery] = useState(initialCompany)
+  const [length, setLength] = useState(user?.default_brief_length || 'medium')
   const DEFAULT_SECTIONS = ALL_SECTIONS.map(s => s.id).filter(id => id !== 'job_signals' && id !== 'social_sentiment')
-  const [sections,       setSections]       = useState(DEFAULT_SECTIONS)
-  const [selectedModel,  setSelectedModel]  = useState('meta-llama/llama-4-scout-17b-16e-instruct')
-  const [deepMindMode,   setDeepMindMode]   = useState(false)
-  const [showSections,   setShowSections]   = useState(false)
+  const [sections, setSections] = useState(DEFAULT_SECTIONS)
+  const [selectedModel, setSelectedModel] = useState('meta-llama/llama-4-scout-17b-16e-instruct')
+  const [deepMindMode, setDeepMindMode] = useState(false)
   const [showModelPanel, setShowModelPanel] = useState(false)
 
+  // Scheduling state
+  const [mode, setMode] = useState('now') // 'now' | 'schedule'
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [recurring, setRecurring] = useState('')
+
   // PDF context
-  const [pdfFile,        setPdfFile]        = useState(null)
-  const [pdfContext,     setPdfContext]      = useState('')
-  const [pdfLoading,     setPdfLoading]     = useState(false)
+  const [pdfFile, setPdfFile] = useState(null)
+  const [pdfContext, setPdfContext] = useState('')
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const fileRef = useRef(null)
 
   // Generation state
-  const [generating,     setGenerating]     = useState(false)
-  const [statusStep,     setStatusStep]     = useState(0)
-  const [error,          setError]          = useState('')
-  const [rateLimitData,  setRateLimitData]  = useState(null)
-  // After generation: show inline streaming preview instead of navigating
-  const [streamingBrief, setStreamingBrief] = useState(null)  // { id, data }
+  const [generating, setGenerating] = useState(false)
+  const [statusStep, setStatusStep] = useState(0)
+  const [error, setError] = useState('')
+  const [rateLimitData, setRateLimitData] = useState(null)
+  const [streamingBrief, setStreamingBrief] = useState(null)
 
-  // Model panel ref for click-outside
   const modelPanelRef = useRef(null)
 
   useEffect(() => {
@@ -68,7 +73,6 @@ export default function BriefGeneratorPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showModelPanel])
 
-  // Cycle status messages during generation
   useEffect(() => {
     if (!generating) return
     const id = setInterval(() => {
@@ -77,7 +81,6 @@ export default function BriefGeneratorPage() {
     return () => clearInterval(id)
   }, [generating])
 
-  // PDF upload handler
   const handlePdfSelect = async (file) => {
     if (file.size > 5 * 1024 * 1024) {
       toast.error('PDF must be under 5MB')
@@ -88,14 +91,12 @@ export default function BriefGeneratorPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      // Do NOT set Content-Type manually — axios must auto-set it with the multipart boundary
       const res = await api.post('/api/extract-pdf', formData)
       setPdfContext(res.data.text)
       toast.success(`PDF loaded — ${res.data.pages} page${res.data.pages !== 1 ? 's' : ''} extracted`)
     } catch (err) {
       const msg = err.response?.data?.error || 'Could not read PDF'
       toast.error(msg)
-      console.error('[PDF upload]', err.response?.status, err.response?.data)
       setPdfFile(null)
       setPdfContext('')
     } finally {
@@ -108,17 +109,57 @@ export default function BriefGeneratorPage() {
     setPdfContext('')
   }
 
-  const handleGenerate = async (e) => {
+  const handleSubmit = async (e) => {
     if (e?.preventDefault) e.preventDefault()
     if (!query.trim()) { setError('Please describe what you want to research'); return }
     if (pdfLoading) { setError('Still processing your PDF — please wait'); return }
     setError('')
+
+    let finalPrompt = query.trim()
+    if (meetingType) {
+      finalPrompt = `[Meeting Type: ${meetingType.replace('_', ' ')}] ${finalPrompt}`
+    }
+    if (generationType === 'compare') {
+      finalPrompt = `[Compare Mode] ${finalPrompt}`
+    }
+
+    if (mode === 'schedule') {
+      if (!scheduleDate || !scheduleTime) {
+        setError('Please select both a date and time for delivery')
+        return
+      }
+      const localDateTimeStr = `${scheduleDate}T${scheduleTime}`
+      const scheduledDate = new Date(localDateTimeStr)
+      if (scheduledDate <= new Date()) {
+        setError('Scheduled delivery time must be in the future')
+        return
+      }
+
+      setGenerating(true)
+      try {
+        await api.post('/api/scheduled', {
+          prompt: finalPrompt,
+          scheduled_for: scheduledDate.toISOString(),
+          recurring: recurring || null,
+          length,
+          sections
+        })
+        toast.success('Brief scheduled successfully!')
+        navigate('/dashboard')
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to schedule brief. Please try again.')
+      } finally {
+        setGenerating(false)
+      }
+      return
+    }
+
     setGenerating(true)
     setStatusStep(0)
 
     try {
       const res = await api.post('/api/brief', {
-        query:       query.trim(),
+        query:       finalPrompt,
         length,
         sections,
         model_id:    selectedModel,
@@ -131,7 +172,6 @@ export default function BriefGeneratorPage() {
         reset_at:                   res.data.reset_at
       })
 
-      // Show inline streaming preview — don't navigate away
       setGenerating(false)
       setStreamingBrief({ id: res.data.id, data: res.data.brief })
     } catch (err) {
@@ -150,9 +190,6 @@ export default function BriefGeneratorPage() {
   const toggleSection = (id) =>
     setSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
 
-  const toggleAll = () =>
-    setSections(sections.length === ALL_SECTIONS.length ? [] : ALL_SECTIONS.map(s => s.id))
-
   const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0]
 
   return (
@@ -166,101 +203,65 @@ export default function BriefGeneratorPage() {
         />
       )}
 
-      {/* ── Model picker panel — fixed to the right of viewport ── */}
+      {/* Model picker panel */}
       <AnimatePresence>
         {showModelPanel && (
           <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-[400]"
-              onClick={() => setShowModelPanel(false)}
-            />
+            <div className="fixed inset-0 z-[400]" onClick={() => setShowModelPanel(false)} />
             <motion.div
               ref={modelPanelRef}
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{  opacity: 0, x: 16 }}
+              exit={{ opacity: 0, x: 16 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className="fixed top-20 right-4 z-[500] w-72 bg-surface-light dark:bg-[#1c1c1c] border border-border dark:border-[rgba(255,255,255,0.10)] rounded-2xl shadow-2xl p-2 overflow-hidden"
             >
               <div className="px-3 py-2 text-[10px] font-bold text-tx-tertiary uppercase tracking-widest border-b border-border dark:border-[rgba(255,255,255,0.06)] mb-2">
                 Select AI Model
               </div>
-
-              {/* Free tier */}
               <div className="px-3 py-1 text-[9px] font-bold text-tx-tertiary/50 uppercase tracking-widest mb-1">Free</div>
               {MODELS.filter(m => m.tier === 'free').map(m => (
-                <ModelOption
+                <button
                   key={m.id}
-                  model={m}
-                  selected={selectedModel === m.id}
-                  locked={false}
-                  onSelect={() => { setSelectedModel(m.id); setShowModelPanel(false) }}
-                />
+                  onClick={() => { setSelectedModel(m.id); setShowModelPanel(false) }}
+                  className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-start justify-between gap-2 ${
+                    selectedModel === m.id ? 'bg-accent/10 text-accent' : 'hover:bg-surface-raised text-tx-secondary hover:text-tx-primary'
+                  }`}
+                >
+                  <div>
+                    <div className="text-xs font-semibold">{m.name}</div>
+                    <div className="text-[10px] text-tx-tertiary mt-0.5 leading-relaxed">{m.desc}</div>
+                  </div>
+                </button>
               ))}
-
-              {/* Pro tier */}
               <div className="px-3 py-1 text-[9px] font-bold text-indigo-400/70 uppercase tracking-widest mt-3 mb-1">Pro</div>
               {MODELS.filter(m => m.tier === 'pro').map(m => {
                 const locked = user?.tier !== 'pro'
                 return (
-                  <ModelOption
+                  <button
                     key={m.id}
-                    model={m}
-                    selected={selectedModel === m.id}
-                    locked={locked}
-                    onSelect={() => { if (!locked) { setSelectedModel(m.id); setShowModelPanel(false) } }}
-                  />
+                    disabled={locked}
+                    onClick={() => { if (!locked) { setSelectedModel(m.id); setShowModelPanel(false) } }}
+                    className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-start justify-between gap-2 ${
+                      selectedModel === m.id ? 'bg-accent/10 text-accent' : locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-raised text-tx-secondary hover:text-tx-primary'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs font-semibold">{m.name}</div>
+                      <div className="text-[10px] text-tx-tertiary mt-0.5 leading-relaxed">{m.desc}</div>
+                    </div>
+                  </button>
                 )
               })}
-
-              {user?.tier !== 'pro' && (
-                <div className="mt-3 pt-2 border-t border-border dark:border-[rgba(255,255,255,0.06)] px-3 pb-2">
-                  <p className="text-[10px] text-tx-tertiary leading-relaxed">
-                    Pro models unlock larger context windows and deeper reasoning. <span className="text-accent">Upgrade soon.</span>
-                  </p>
-                </div>
-              )}
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      <div className={streamingBrief ? 'max-w-3xl mx-auto' : 'max-w-2xl mx-auto'}>
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold mb-1 text-tx-primary-light dark:text-tx-primary">
-                New Brief
-              </h1>
-              <p className="text-sm text-tx-secondary">
-                Describe your research goal — the AI figures out the rest
-              </p>
-            </div>
-            {user?.tier === 'free' && !streamingBrief && (
-              <StorageWidget
-                variant="compact"
-                remaining={user?.briefs_remaining_this_hour ?? 3}
-                total={3}
-                resetAt={user?.reset_at}
-                className="shrink-0 mt-1"
-              />
-            )}
-          </div>
-        </motion.div>
-
+      <div className={streamingBrief ? 'max-w-3xl mx-auto' : 'max-w-xl mx-auto'}>
         <AnimatePresence mode="wait">
           {streamingBrief ? (
-            /* ── Streaming brief preview ── */
-            <motion.div
-              key="streaming"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* "New brief" reset button */}
+            <motion.div key="streaming" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="flex items-center justify-between mb-6">
                 <button
                   onClick={() => {
@@ -282,7 +283,6 @@ export default function BriefGeneratorPage() {
               />
             </motion.div>
           ) : generating ? (
-            /* ── Generating state ── */
             <motion.div
               key="generating"
               initial={{ opacity: 0, scale: 0.98 }}
@@ -290,7 +290,6 @@ export default function BriefGeneratorPage() {
               exit={{ opacity: 0 }}
               className="py-20 flex flex-col items-center justify-center text-center border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl bg-surface-light dark:bg-surface relative overflow-hidden"
             >
-              {/* Progress bar */}
               <div className="absolute top-0 left-0 h-0.5 bg-accent/10 w-full">
                 <motion.div
                   className="h-full bg-accent rounded-r-full"
@@ -299,7 +298,6 @@ export default function BriefGeneratorPage() {
                   transition={{ duration: 1.5, ease: 'easeOut' }}
                 />
               </div>
-
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
@@ -307,219 +305,271 @@ export default function BriefGeneratorPage() {
               >
                 <Sparkles className="w-8 h-8 text-accent" />
               </motion.div>
-
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={statusStep}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{  opacity: 0, y: -10 }}
-                  className="space-y-1.5 px-8"
-                >
+                <motion.div key={statusStep} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{  opacity: 0, y: -10 }} className="space-y-1.5 px-8">
                   <p className="text-lg font-display font-semibold">{STATUS_MESSAGES[statusStep].text}</p>
                   <p className="text-sm text-tx-tertiary">{STATUS_MESSAGES[statusStep].sub}</p>
                 </motion.div>
               </AnimatePresence>
-
-              <div className="flex gap-1.5 mt-8">
-                {STATUS_MESSAGES.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                      i <= statusStep ? 'bg-accent' : 'bg-surface-raised dark:bg-surface-raised/60'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {query && (
-                <p className="text-xs text-tx-tertiary font-mono mt-6 px-8 truncate max-w-sm opacity-60">
-                  "{query.length > 60 ? query.slice(0, 60) + '…' : query}"
-                </p>
-              )}
             </motion.div>
           ) : (
-            /* ── Form ── */
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-4"
-            >
-              {/* Main input */}
-              <AIChatInput
-                value={query}
-                onChange={(val) => { setQuery(val); setError('') }}
-                onSubmit={handleGenerate}
-                generating={generating}
-                selectedModel={selectedModel}
-                onModelPickerToggle={() => setShowModelPanel(v => !v)}
-                showModelPicker={showModelPanel}
-                deepMindMode={deepMindMode}
-                setDeepMindMode={setDeepMindMode}
-                pdfFile={pdfFile}
-                onPdfSelect={handlePdfSelect}
-                onPdfClear={handlePdfClear}
-                userTier={user?.tier || 'free'}
-              />
+            <motion.div key="form" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              {/* Header */}
+              <div>
+                <h1 className="text-3xl font-display font-bold text-tx-primary-light dark:text-tx-primary">
+                  Generate a Brief
+                </h1>
+                <p className="text-sm text-tx-secondary mt-1">
+                  Enter a company name and we'll do the rest.
+                </p>
+              </div>
 
-              {/* PDF loading indicator */}
-              {pdfLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-2 text-xs text-accent px-1"
+              {/* Mode Toggle (Now vs Schedule) */}
+              <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl w-fit border border-border dark:border-[rgba(255,255,255,0.06)]">
+                <button
+                  type="button"
+                  onClick={() => setMode('now')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    mode === 'now' ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary' : 'text-tx-tertiary hover:text-tx-secondary'
+                  }`}
                 >
-                  <div className="w-3 h-3 rounded-full border border-accent/30 border-t-accent animate-spin" />
-                  Extracting PDF text…
-                </motion.div>
+                  Generate Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('schedule')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    mode === 'schedule' ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary' : 'text-tx-tertiary hover:text-tx-secondary'
+                  }`}
+                >
+                  Schedule Delivery
+                </button>
+              </div>
+
+              {/* Single Company / Compare Two */}
+              <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl w-full border border-border dark:border-[rgba(255,255,255,0.06)]">
+                <button
+                  type="button"
+                  onClick={() => setGenerationType('single')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    generationType === 'single' ? 'bg-surface-light dark:bg-surface shadow-sm text-accent font-bold' : 'text-tx-secondary'
+                  }`}
+                >
+                  Single Company
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerationType('compare')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    generationType === 'compare' ? 'bg-surface-light dark:bg-surface shadow-sm text-accent font-bold' : 'text-tx-secondary'
+                  }`}
+                >
+                  Compare Two
+                </button>
+              </div>
+
+              {/* Delivery Settings if Schedule */}
+              {mode === 'schedule' && (
+                <div className="bg-surface-light dark:bg-[#141414] border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl p-5 space-y-4">
+                  <h3 className="text-xs uppercase font-bold text-tx-tertiary tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> Delivery Settings
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-tx-tertiary mb-1.5">Schedule Date</label>
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={e => setScheduleDate(e.target.value)}
+                        required
+                        className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl px-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-tx-tertiary mb-1.5">Schedule Time</label>
+                      <input
+                        type="time"
+                        value={scheduleTime}
+                        onChange={e => setScheduleTime(e.target.value)}
+                        required
+                        className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl px-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none dark:text-white"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-tx-tertiary mb-1.5">Recurrence</label>
+                    <select
+                      value={recurring}
+                      onChange={e => setRecurring(e.target.value)}
+                      className="w-full bg-surface-raised-light dark:bg-surface-raised border border-border-strong rounded-xl px-4 py-2.5 text-sm focus:border-accent/50 focus:outline-none dark:text-white"
+                    >
+                      <option value="">One-time delivery</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                  </div>
+                </div>
               )}
 
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-red-400 text-sm flex items-center gap-2 px-1"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  {error}
-                </motion.p>
-              )}
+              {/* MEETING TYPE */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-tx-tertiary tracking-wider mb-2">Meeting Type (Optional)</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['Cold Call', 'First Meeting', 'Partnership', 'Renewal'].map(type => {
+                    const id = type.toLowerCase().replace(' ', '_')
+                    const selected = meetingType === id
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setMeetingType(selected ? '' : id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                          selected ? 'bg-accent/15 border-accent text-accent' : 'bg-surface-raised-light dark:bg-surface-raised border-border dark:border-[rgba(255,255,255,0.06)] text-tx-secondary hover:border-tx-secondary'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-              {/* Hint */}
-              <p className="text-xs text-tx-tertiary/60 px-1 leading-relaxed">
-                <span className="font-semibold text-tx-tertiary/80">Tip:</span> The more detail you give, the better the brief.
-                Include what you sell and your specific angle — e.g. <span className="font-mono">"Research Salesforce, pitching DevOps automation tools to their engineering org"</span>
-              </p>
-
-              {/* Brief Length */}
-              <div className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl p-5">
-                <label className="block text-sm font-semibold mb-3 text-tx-primary-light dark:text-tx-primary">Brief Length</label>
-                <div className="flex bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl gap-1">
-                  {[
-                    { id: 'short',  label: 'Quick Scan',  sub: '~2 min read'  },
-                    { id: 'medium', label: 'Standard',    sub: '~5 min read'  },
-                    { id: 'long',   label: 'Deep Dive',   sub: '~15 min read' },
-                  ].map(l => (
+              {/* BRIEF LENGTH */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-tx-tertiary tracking-wider mb-2">Brief Length</h3>
+                <div className="grid grid-cols-3 gap-2 bg-surface-raised-light dark:bg-surface-raised p-1 rounded-xl border border-border dark:border-[rgba(255,255,255,0.06)]">
+                  {['short', 'medium', 'long'].map(l => (
                     <button
-                      key={l.id}
+                      key={l}
                       type="button"
-                      onClick={() => setLength(l.id)}
-                      className={`flex-1 py-2.5 px-3 rounded-lg text-center transition-all ${
-                        length === l.id
-                          ? 'bg-surface-light dark:bg-surface shadow-sm text-tx-primary-light dark:text-tx-primary'
-                          : 'text-tx-tertiary hover:text-tx-secondary'
+                      onClick={() => setLength(l)}
+                      className={`py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
+                        length === l ? 'bg-surface-light dark:bg-surface text-accent font-bold shadow-sm' : 'text-tx-secondary'
                       }`}
                     >
-                      <div className="text-sm font-medium">{l.label}</div>
-                      <div className="text-[10px] text-tx-tertiary mt-0.5 hidden sm:block">{l.sub}</div>
+                      {l}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Sections accordion */}
-              <div className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowSections(!showSections)}
-                  className="w-full flex justify-between items-center p-5 hover:bg-surface-raised-light dark:hover:bg-surface-raised/40 transition"
-                >
-                  <div className="text-left">
-                    <div className="text-sm font-semibold text-tx-primary-light dark:text-tx-primary">Sections to include</div>
-                    <div className="text-xs text-tx-tertiary mt-0.5">{sections.length} of {ALL_SECTIONS.length} selected</div>
-                  </div>
-                  {showSections
-                    ? <ChevronUp className="w-4 h-4 text-tx-tertiary" />
-                    : <ChevronDown className="w-4 h-4 text-tx-tertiary" />}
-                </button>
-                <AnimatePresence>
-                  {showSections && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden border-t border-border dark:border-[rgba(255,255,255,0.06)]"
-                    >
-                      <div className="p-5 pt-4">
-                        <button
-                          type="button"
-                          onClick={toggleAll}
-                          className="text-xs text-accent hover:underline mb-4 block"
-                        >
-                          {sections.length === ALL_SECTIONS.length ? 'Deselect all' : 'Select all'}
-                        </button>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {ALL_SECTIONS.map(s => (
-                            <label
-                              key={s.id}
-                              className="flex items-center gap-2.5 cursor-pointer group p-2 rounded-xl hover:bg-surface-raised-light dark:hover:bg-surface-raised transition"
-                            >
-                              <input
-                                type="checkbox"
-                                className="sr-only"
-                                checked={sections.includes(s.id)}
-                                onChange={() => toggleSection(s.id)}
-                              />
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                                sections.includes(s.id)
-                                  ? 'bg-accent border-accent'
-                                  : 'border-tx-tertiary group-hover:border-accent/50'
-                              }`}>
-                                {sections.includes(s.id) && (
-                                  <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
-                                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  </svg>
-                                )}
-                              </div>
-                              <span className="text-xs">{s.icon}</span>
-                              <span className={`text-sm ${sections.includes(s.id) ? 'text-tx-primary-light dark:text-tx-primary' : 'text-tx-secondary'}`}>
-                                {s.label}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              {/* SECTIONS TO INCLUDE */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-tx-tertiary tracking-wider mb-2">Sections to Include</h3>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_SECTIONS.map(s => {
+                    const active = sections.includes(s.id)
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleSection(s.id)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                          active ? 'border-accent bg-accent/5 text-accent' : 'border-border dark:border-[rgba(255,255,255,0.06)] text-tx-secondary hover:border-tx-secondary'
+                        }`}
+                      >
+                        <span className="mr-1">{s.icon}</span> {s.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
+
+              {/* INPUT PROMPT TEXTAREA */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs uppercase font-bold text-tx-tertiary tracking-wider">Company Name & Context</h3>
+                  <div className="flex items-center gap-2">
+                    {/* Add PDF inline inside context header */}
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".pdf"
+                      className="sr-only"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) handlePdfSelect(file)
+                        e.target.value = ''
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                        pdfFile ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-raised-light dark:bg-surface-raised border-border dark:border-[rgba(255,255,255,0.06)] text-tx-secondary hover:text-tx-primary'
+                      }`}
+                    >
+                      <Paperclip className="w-3 h-3" />
+                      {pdfFile ? 'PDF Added' : 'Add PDF'}
+                    </button>
+
+                    {/* Deep Mind */}
+                    <button
+                      type="button"
+                      onClick={() => setDeepMindMode(!deepMindMode)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                        deepMindMode ? 'bg-accent text-white border-accent' : 'bg-surface-raised-light dark:bg-surface-raised border-border dark:border-[rgba(255,255,255,0.06)] text-tx-secondary hover:text-tx-primary'
+                      }`}
+                    >
+                      <Brain className="w-3 h-3" />
+                      Deep Mind
+                    </button>
+
+                    {/* Model Picker */}
+                    <button
+                      type="button"
+                      onClick={() => setShowModelPanel(!showModelPanel)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold border bg-surface-raised-light dark:bg-surface-raised border-border dark:border-[rgba(255,255,255,0.06)] text-tx-primary-light dark:text-tx-primary"
+                    >
+                      {currentModel.name} <ChevronDown className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {pdfFile && (
+                  <div className="flex items-center justify-between bg-accent/5 border border-accent/15 px-3 py-2 rounded-xl text-xs text-accent">
+                    <span className="truncate">{pdfFile.name} (context loaded)</span>
+                    <button onClick={handlePdfClear} className="text-accent hover:text-red-400">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <textarea
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setError('') }}
+                    placeholder="e.g. Research Nvidia, i'm going to pitch them about real-time quality control software we built..."
+                    rows={5}
+                    maxLength={500}
+                    className="w-full bg-surface-light dark:bg-[#141414] border border-border dark:border-[rgba(255,255,255,0.08)] rounded-2xl p-4 text-sm focus:outline-none focus:border-accent transition-colors dark:text-white"
+                  />
+                  <div className="absolute bottom-3.5 right-4 text-[10px] font-mono text-tx-tertiary">
+                    {query.length}/500
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <div className="text-red-400 text-sm flex items-center gap-2 bg-red-500/5 border border-red-500/10 p-3 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* SUBMIT BUTTON */}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={generating || !query.trim()}
+                className="w-full py-3 bg-accent hover:bg-accent-light disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg glow-accent"
+              >
+                <span>⚡</span> {mode === 'schedule' ? 'Schedule Delivery' : 'Generate Brief'}
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </Layout>
-  )
-}
-
-function ModelOption({ model, selected, locked, onSelect }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={locked}
-      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 ${
-        selected
-          ? 'bg-accent/10 text-accent'
-          : locked
-          ? 'opacity-40 cursor-not-allowed text-tx-tertiary'
-          : 'hover:bg-surface-raised-light dark:hover:bg-surface-raised text-tx-secondary hover:text-tx-primary'
-      }`}
-    >
-      <div className="min-w-0">
-        <div className="text-xs font-semibold truncate">{model.name}</div>
-        <div className="text-[10px] text-tx-tertiary truncate mt-0.5 leading-relaxed">{model.desc}</div>
-      </div>
-      <div className="shrink-0 mt-0.5">
-        {locked ? (
-          <span className="flex items-center gap-0.5 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full font-bold uppercase">
-            <Lock className="w-2.5 h-2.5" /> Pro
-          </span>
-        ) : selected ? (
-          <span className="w-1.5 h-1.5 rounded-full bg-accent block mt-1" />
-        ) : null}
-      </div>
-    </button>
   )
 }
