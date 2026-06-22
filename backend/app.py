@@ -394,12 +394,15 @@ def create_app():
         from agents import extract_company_and_context
         extracted_company, extracted_context = extract_company_and_context(raw_query)
 
-        company_name = _sanitize_company(extracted_company)
+        # Strip bracketed tags (e.g. [Compare Mode], [Meeting Type: ...])
+        clean_extracted = re.sub(r"^\[[^\]]+\]\s*", "", extracted_company).strip()
+        company_name = _sanitize_company(clean_extracted)
         if not company_name:
-            # Last resort: try to use raw query as company name if short
-            words = raw_query.strip().split()
+            # Last resort: try to use clean raw query as company name if short
+            clean_query = re.sub(r"^\[[^\]]+\]\s*", "", raw_query).strip()
+            words = clean_query.split()
             if len(words) <= 4:
-                company_name = _sanitize_company(raw_query.strip())
+                company_name = _sanitize_company(clean_query)
         if not company_name:
             return jsonify({"error": "Couldn't identify a company in your query. Try: 'Research [Company], I'm pitching...'"}), 400
 

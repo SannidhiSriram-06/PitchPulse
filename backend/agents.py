@@ -43,9 +43,13 @@ def _next_api_key():
 def extract_company_and_context(prompt, api_key=None):
     if not prompt or not prompt.strip():
         return "", ""
-    words = prompt.strip().split()
+    
+    # Strip any bracketed prefixes (e.g. [Compare Mode], [Meeting Type: ...])
+    clean_prompt = re.sub(r"^\[[^\]]+\]\s*", "", prompt).strip()
+    
+    words = clean_prompt.split()
     if len(words) <= 3:
-        return prompt.strip(), ""
+        return clean_prompt, ""
 
     key = api_key or _next_api_key()
     try:
