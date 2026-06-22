@@ -13,3 +13,4 @@ httpx
 gunicorn
 yfinance
 PyPDF2
+psycopg2-binary
