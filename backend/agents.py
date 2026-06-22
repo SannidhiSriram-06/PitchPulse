@@ -16,9 +16,8 @@ VALID_FREE_MODELS = {
     "llama-3.3-70b-versatile",                     # 12K TPM
 }
 VALID_PRO_MODELS = {
-    "openai/gpt-oss-120b",
-    "qwen/qwen3-32b",
-    "groq/compound-mini",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it",
 }
 ALL_VALID_MODELS = VALID_FREE_MODELS | VALID_PRO_MODELS
 

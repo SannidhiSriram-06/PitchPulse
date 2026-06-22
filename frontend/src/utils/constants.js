@@ -56,21 +56,15 @@ export const MODELS = [
     tier: 'free'
   },
   {
-    id: 'openai/gpt-oss-120b',
-    name: 'GPT-OSS (120B)',
-    desc: 'Largest model · deepest analysis · Pro',
+    id: 'mixtral-8x7b-32768',
+    name: 'Mixtral 8x7B',
+    desc: 'High quality mixture-of-experts · Pro',
     tier: 'pro'
   },
   {
-    id: 'qwen/qwen3-32b',
-    name: 'Qwen3 (32B)',
-    desc: 'Fastest RPM (60/min) · chain-of-thought · Pro',
-    tier: 'pro'
-  },
-  {
-    id: 'groq/compound-mini',
-    name: 'Compound Mini',
-    desc: "Groq's fastest compound model · Pro",
+    id: 'gemma2-9b-it',
+    name: 'Gemma 2 9B',
+    desc: 'Google lightweight & efficient instruction model · Pro',
     tier: 'pro'
   }
 ]

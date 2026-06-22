@@ -83,6 +83,19 @@ export default function DashboardPage() {
     }
   }
 
+  const removeWatchlist = async (e, id, name) => {
+    e.stopPropagation()
+    if (confirm(`Remove ${name} from watchlist?`)) {
+      try {
+        await api.delete(`/api/watchlist/${id}`)
+        setWatchlist(prev => prev.filter(w => w.id !== id))
+        toast.success(`${name} removed from watchlist`)
+      } catch {
+        toast.error('Failed to remove company')
+      }
+    }
+  }
+
   const tabs = [
     {
       id: 'recent',
@@ -213,12 +226,19 @@ export default function DashboardPage() {
                     : 'Never briefed'}
                 </p>
               </div>
-              <div className="mt-4 pt-3 border-t border-border dark:border-[rgba(255,255,255,0.04)]">
+              <div className="mt-4 pt-3 border-t border-border dark:border-[rgba(255,255,255,0.04)] flex gap-2">
                 <button
                   onClick={() => navigate(`/brief/new?company=${encodeURIComponent(item.company_name)}`)}
-                  className="w-full bg-accent hover:bg-accent-light text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all active:scale-[0.97]"
+                  className="flex-1 bg-accent hover:bg-accent-light text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all active:scale-[0.97]"
                 >
                   Generate Brief
+                </button>
+                <button
+                  onClick={(e) => removeWatchlist(e, item.id, item.company_name)}
+                  className="p-2 border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  title="Remove from watchlist"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
