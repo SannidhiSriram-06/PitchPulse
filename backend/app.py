@@ -144,6 +144,37 @@ def create_app():
 
     # ── Auth ──────────────────────────────────────────────────────────────────
 
+    def _fetch_clerk_user_details(clerk_user_id):
+        if not Config.CLERK_SECRET_KEY:
+            return None, None
+        try:
+            url = f"https://api.clerk.com/v1/users/{clerk_user_id}"
+            headers = {
+                "Authorization": f"Bearer {Config.CLERK_SECRET_KEY}",
+                "Accept": "application/json"
+            }
+            resp = requests.get(url, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                email = None
+                primary_id = data.get("primary_email_address_id")
+                email_list = data.get("email_addresses", [])
+                for e in email_list:
+                    if e.get("id") == primary_id:
+                        email = e.get("email_address")
+                        break
+                if not email and email_list:
+                    email = email_list[0].get("email_address")
+
+                first = data.get("first_name") or ""
+                last = data.get("last_name") or ""
+                display_name = f"{first} {last}".strip() or None
+
+                return email, display_name
+        except Exception as e:
+            print(f"[Clerk API] Error fetching user details: {e}")
+        return None, None
+
     def _get_current_user():
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
@@ -158,10 +189,21 @@ def create_app():
                 raise Exception("Please login to continue")
 
             user = User.query.filter_by(clerk_user_id=clerk_user_id).first()
+
+            # If user exists but has a placeholder email, self-heal by fetching real details
+            if user and (not user.email or user.email.endswith("@placeholder.com")):
+                real_email, real_name = _fetch_clerk_user_details(clerk_user_id)
+                if real_email:
+                    user.email = real_email
+                if real_name and not user.display_name:
+                    user.display_name = real_name
+                db.session.commit()
+
             is_new = False
             if not user:
-                email = email or f"{clerk_user_id}@placeholder.com"
-                user = User(clerk_user_id=clerk_user_id, email=email)
+                real_email, real_name = _fetch_clerk_user_details(clerk_user_id)
+                email = real_email or email or f"{clerk_user_id}@placeholder.com"
+                user = User(clerk_user_id=clerk_user_id, email=email, display_name=real_name)
                 db.session.add(user)
                 db.session.commit()
                 is_new = True
