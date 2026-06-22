@@ -22,7 +22,8 @@ export default function StockChart({ companyName }) {
       setData(res.data)
     } catch (e) {
       console.error(e)
-      setError('No stock market data available for this company.')
+      const errorMsg = e.response?.data?.error || 'No stock market data available for this company.'
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
