@@ -836,11 +836,13 @@ def create_app():
         if prompt.strip():
             from agents import extract_company_and_context
             extracted_company, extracted_context = extract_company_and_context(prompt)
-            sanitized_company = _sanitize_company(extracted_company)
+            clean_extracted = re.sub(r"^\[[^\]]+\]\s*", "", extracted_company).strip()
+            sanitized_company = _sanitize_company(clean_extracted)
             if not sanitized_company:
-                words = prompt.strip().split()
+                clean_prompt = re.sub(r"^\[[^\]]+\]\s*", "", prompt).strip()
+                words = clean_prompt.split()
                 if len(words) <= 4:
-                    sanitized_company = _sanitize_company(prompt.strip())
+                    sanitized_company = _sanitize_company(clean_prompt)
             if not sanitized_company:
                 return jsonify({"error": "Couldn't identify a company in your prompt. E.g. 'Research Nvidia...'"}), 400
             company_name = sanitized_company
