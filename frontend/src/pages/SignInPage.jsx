@@ -36,7 +36,8 @@ export default function SignInPage() {
                   fontFamily: 'Inter, system-ui, sans-serif',
                 },
                 elements: {
-                  card: 'border-0 shadow-none bg-transparent w-full p-0',
+                  cardBox: 'border-0 shadow-none bg-transparent w-full',
+                  card: 'bg-white dark:bg-[#111112] border border-neutral-200 dark:border-[rgba(255,255,255,0.08)] rounded-[2rem] shadow-2xl p-8 sm:p-10 w-full',
                   headerTitle: 'font-display text-2xl sm:text-3xl font-bold tracking-tight text-tx-primary-light dark:text-tx-primary text-center mb-1',
                   headerSubtitle: 'text-sm text-tx-secondary-light dark:text-tx-secondary text-center leading-relaxed mb-6',
                   formButtonPrimary: 'w-full rounded-full bg-accent hover:bg-accent-light text-white px-6 py-3.5 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] mt-2',
