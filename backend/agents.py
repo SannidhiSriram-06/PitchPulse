@@ -599,6 +599,8 @@ OUTPUT THIS EXACT STRUCTURE:
 HARD RULES:
 {hard_rules_prompt}
 """,
+                expected_output="Valid complete JSON object matching the schema exactly. Nothing else.",
+                agent=formatter
             )
 
             crew = Crew(
