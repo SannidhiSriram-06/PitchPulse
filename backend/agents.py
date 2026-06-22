@@ -10,14 +10,15 @@ from tools import company_web_search, company_financial_data
 import tools as tools_module
 
 # Real Groq-hosted model IDs (from the official rate limits table).
-# llama-3.1-8b-instant removed — its 6K TPM is too low for our research payloads.
 VALID_FREE_MODELS = {
     "meta-llama/llama-4-scout-17b-16e-instruct",  # 30K TPM — best default
-    "llama-3.3-70b-versatile",                     # 12K TPM
+    "groq/compound-mini",                        # 70K TPM — high capacity free
+    "llama-3.1-8b-instant",                      # 6K TPM / 14.4K RPD — fast/cheapest free
 }
 VALID_PRO_MODELS = {
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it",
+    "llama-3.3-70b-versatile",                     # 12K TPM — high capability pro
+    "openai/gpt-oss-120b",                         # 8K TPM — massive reasoning pro
+    "groq/compound",                               # 70K TPM — complex composition pro
 }
 ALL_VALID_MODELS = VALID_FREE_MODELS | VALID_PRO_MODELS
 
@@ -131,19 +132,32 @@ def run_brief(company_name, length, sections, user_context, model_id=None, deep_
         model_path = f"groq/{chosen_model}"  # e.g. groq/meta-llama/llama-4-scout-17b-16e-instruct
 
     # Per-model char budgets — sized to stay comfortably under each model's TPM limit.
-    # llama-4-scout:        30K TPM → very generous
-    # llama-3.3-70b:        12K TPM → moderate
-    # Pro (120b/qwen/etc):  8K TPM  → still fine with our payload sizes
     if chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
         _search_per_query_cap = 4000
         _pdf_cap              = 5500
         _financial_cap        = 1500
+    elif chosen_model == "groq/compound-mini":
+        _search_per_query_cap = 6000
+        _pdf_cap              = 7500
+        _financial_cap        = 2000
+    elif chosen_model == "llama-3.1-8b-instant":
+        _search_per_query_cap = 1500
+        _pdf_cap              = 2000
+        _financial_cap        = 800
     elif chosen_model == "llama-3.3-70b-versatile":
         _search_per_query_cap = 2500
         _pdf_cap              = 3500
         _financial_cap        = 1200
+    elif chosen_model == "openai/gpt-oss-120b":
+        _search_per_query_cap = 2000
+        _pdf_cap              = 3000
+        _financial_cap        = 1000
+    elif chosen_model == "groq/compound":
+        _search_per_query_cap = 6000
+        _pdf_cap              = 7500
+        _financial_cap        = 2000
     else:
-        # Pro models (gpt-oss-120b, qwen3-32b, compound-mini)
+        # Default fallback
         _search_per_query_cap = 3000
         _pdf_cap              = 4500
         _financial_cap        = 1400

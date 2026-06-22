@@ -45,26 +45,38 @@ export const ALL_SECTIONS = [
 export const MODELS = [
   {
     id: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    name: 'LLaMA 4 Scout',
+    name: 'LLaMA 4 Scout (17B)',
     desc: 'Default · 30K TPM · best for long briefs & PDFs',
+    tier: 'free'
+  },
+  {
+    id: 'groq/compound-mini',
+    name: 'Compound Mini',
+    desc: 'High capacity · 70K TPM · ultra-fast structure parsing',
+    tier: 'free'
+  },
+  {
+    id: 'llama-3.1-8b-instant',
+    name: 'LLaMA 3.1 8B',
+    desc: 'Lightweight & ultra-fast · 14.4K daily requests limit',
     tier: 'free'
   },
   {
     id: 'llama-3.3-70b-versatile',
     name: 'LLaMA 3.3 (70B)',
-    desc: 'Highly capable · 12K TPM · great all-rounder',
-    tier: 'free'
-  },
-  {
-    id: 'mixtral-8x7b-32768',
-    name: 'Mixtral 8x7B',
-    desc: 'High quality mixture-of-experts · Pro',
+    desc: 'Reasoning & high capability · 12K TPM · Pro only',
     tier: 'pro'
   },
   {
-    id: 'gemma2-9b-it',
-    name: 'Gemma 2 9B',
-    desc: 'Google lightweight & efficient instruction model · Pro',
+    id: 'openai/gpt-oss-120b',
+    name: 'GPT OSS (120B)',
+    desc: 'Flagship massive model · Deep market synthesis · Pro only',
+    tier: 'pro'
+  },
+  {
+    id: 'groq/compound',
+    name: 'Compound Full',
+    desc: 'Ultimate sales opener tailor · 70K TPM · Pro only',
     tier: 'pro'
   }
 ]
