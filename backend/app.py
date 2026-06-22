@@ -673,16 +673,16 @@ def create_app():
             return jsonify({"error": "Unauthorized"}), 403
 
         from email_service import send_manual_brief
-        success = send_manual_brief(
-            to_email=g.current_user.email,
-            display_name=g.current_user.display_name,
-            company_name=brief.company_name,
-            brief_dict=json.loads(brief.brief_json)
-        )
-        if success:
+        try:
+            send_manual_brief(
+                to_email=g.current_user.email,
+                display_name=g.current_user.display_name,
+                company_name=brief.company_name,
+                brief_dict=json.loads(brief.brief_json)
+            )
             return jsonify({"message": "Email sent successfully"})
-        else:
-            return jsonify({"error": "Failed to send email"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Failed to send email: {str(e)}"}), 500
 
     @app.route('/api/share/<token>', methods=['GET'])
     def get_shared_brief(token):

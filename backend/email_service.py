@@ -287,4 +287,4 @@ def send_manual_brief(to_email, display_name, company_name, brief_dict):
         return True
     except Exception as e:
         print(f"Error sending manual brief email: {e}")
-        return False
+        raise e
