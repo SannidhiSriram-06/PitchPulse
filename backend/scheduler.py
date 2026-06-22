@@ -10,7 +10,7 @@ from email_service import send_scheduled_brief
 def check_and_run_due_briefs(app):
     with app.app_context():
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             # Only upper bound — any pending task whose time has passed is eligible.
             # Removing the min_time lower bound prevents tasks from being permanently
             # lost when the cron trigger is delayed by more than a few minutes.
@@ -35,8 +35,8 @@ def check_and_run_due_briefs(app):
 
                     # Check and reset rate limit window
                     hour_window_start = user.hour_window_start
-                    if hour_window_start and not hour_window_start.tzinfo:
-                        hour_window_start = hour_window_start.replace(tzinfo=timezone.utc)
+                    if hour_window_start and hour_window_start.tzinfo:
+                        hour_window_start = hour_window_start.replace(tzinfo=None)
                     elif not hour_window_start:
                         hour_window_start = now
 

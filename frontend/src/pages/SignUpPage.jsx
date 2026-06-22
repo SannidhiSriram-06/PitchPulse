@@ -19,12 +19,12 @@ export default function SignUpPage() {
         </div>
 
         {/* Form Container */}
-        <div className="flex flex-1 items-center justify-center p-6 md:p-10 mt-16 md:mt-20">
+        <div className="flex flex-1 items-center justify-center p-6 md:p-8 mt-12 md:mt-14">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            className="w-full max-w-[420px]"
+            className="w-full max-w-[400px]"
           >
             <SignUp 
               routing="path" 
@@ -34,21 +34,22 @@ export default function SignUpPage() {
                 variables: {
                   colorPrimary: '#FF6B2C',
                   fontFamily: 'Inter, system-ui, sans-serif',
+                  spacingUnit: '0.8rem',
                 },
                 elements: {
                   cardBox: 'border-0 shadow-none bg-transparent w-full',
-                  card: 'bg-white dark:bg-[#111112] border border-neutral-200 dark:border-[rgba(255,255,255,0.08)] rounded-[2rem] shadow-2xl p-8 sm:p-10 w-full',
-                  headerTitle: 'font-display text-2xl sm:text-3xl font-bold tracking-tight text-tx-primary-light dark:text-tx-primary text-center mb-1',
-                  headerSubtitle: 'text-sm text-tx-secondary-light dark:text-tx-secondary text-center leading-relaxed mb-6',
-                  formButtonPrimary: 'w-full rounded-full bg-accent hover:bg-accent-light text-white px-6 py-3.5 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] mt-2',
-                  formFieldInput: 'w-full rounded-full border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-5 py-3 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-300 focus:border-accent dark:focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40',
-                  formFieldLabel: 'text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-1',
+                  card: 'bg-white dark:bg-[#111112] border border-neutral-200 dark:border-[rgba(255,255,255,0.08)] rounded-[1.5rem] shadow-2xl p-6 sm:p-8 w-full transition-all duration-300 hover:shadow-accent/5 dark:hover:shadow-accent/5 hover:border-neutral-300 dark:hover:border-[rgba(255,255,255,0.12)]',
+                  headerTitle: 'font-display text-xl sm:text-2xl font-bold tracking-tight text-tx-primary-light dark:text-tx-primary text-center mb-0.5',
+                  headerSubtitle: 'text-xs sm:text-sm text-tx-secondary-light dark:text-tx-secondary text-center leading-relaxed mb-4',
+                  formButtonPrimary: 'w-full rounded-xl bg-accent hover:bg-accent-light text-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] mt-1.5',
+                  formFieldInput: 'w-full rounded-xl border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-4 py-2 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:border-accent dark:focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40 transition-all duration-200',
+                  formFieldLabel: 'text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-0.5',
                   footerActionLink: 'font-semibold text-accent hover:text-accent-light hover:underline',
-                  socialButtonsBlockButton: 'flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-6 py-3 text-sm font-medium text-neutral-700 dark:text-neutral-300 transition-colors hover:bg-neutral-50 dark:hover:bg-surface-raised active:bg-neutral-100',
+                  socialButtonsBlockButton: 'flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 transition-all hover:bg-neutral-50 dark:hover:bg-[#1c1c1d] active:scale-[0.98]',
                   dividerLine: 'bg-neutral-200 dark:bg-[rgba(255,255,255,0.06)]',
-                  dividerText: 'px-4 text-sm text-neutral-400',
+                  dividerText: 'px-4 text-xs text-neutral-400 font-medium',
                   footer: 'bg-transparent',
-                  footerActionText: 'text-neutral-500 text-sm mt-5',
+                  footerActionText: 'text-neutral-500 text-xs mt-3',
                   identityPreviewText: 'text-tx-primary-light dark:text-tx-primary',
                   identityPreviewEditButton: 'text-accent hover:text-accent-light',
                   formFieldInputShowPasswordButton: 'text-tx-secondary hover:text-tx-primary',

@@ -826,9 +826,9 @@ def create_app():
         db.session.commit()
         return jsonify({"message": "Deleted"})
 
-    @app.route('/api/cron/process-scheduled', methods=['POST'])
+    @app.route('/api/cron/process-scheduled', methods=['GET', 'POST'])
     def process_scheduled():
-        secret = request.headers.get("X-Cron-Secret")
+        secret = request.headers.get("X-Cron-Secret") or request.args.get("secret")
         if not secret or secret != Config.CRON_SECRET:
             return jsonify({"error": "Unauthorized"}), 401
 
