@@ -1,4 +1,12 @@
 import os
+import socket
+
+# Force IPv4 DNS resolution to prevent connection failures to Supabase on Render
+orig_getaddrinfo = socket.getaddrinfo
+def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = forced_ipv4_getaddrinfo
+
 import json
 import time
 import secrets
