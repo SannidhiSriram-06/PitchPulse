@@ -56,12 +56,6 @@ export const MODELS = [
     tier: 'free'
   },
   {
-    id: 'llama-3.1-8b-instant',
-    name: 'LLaMA 3.1 8B',
-    desc: 'Lightweight & ultra-fast · 14.4K daily requests limit',
-    tier: 'free'
-  },
-  {
     id: 'llama-3.3-70b-versatile',
     name: 'LLaMA 3.3 (70B)',
     desc: 'Reasoning & high capability · 12K TPM · Pro only',

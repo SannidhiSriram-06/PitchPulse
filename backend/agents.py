@@ -13,7 +13,6 @@ import tools as tools_module
 VALID_FREE_MODELS = {
     "meta-llama/llama-4-scout-17b-16e-instruct",  # 30K TPM — best default
     "groq/compound-mini",                        # 70K TPM — high capacity free
-    "llama-3.1-8b-instant",                      # 6K TPM / 14.4K RPD — fast/cheapest free
 }
 VALID_PRO_MODELS = {
     "llama-3.3-70b-versatile",                     # 12K TPM — high capability pro
@@ -125,11 +124,14 @@ def run_brief(company_name, length, sections, user_context, model_id=None, deep_
     chosen_model = model_id or DEFAULT_MODEL
 
     # LiteLLM always needs "groq/<model_id>" to route to Groq.
-    # groq/compound-mini already has the prefix; everything else needs it prepended.
-    if chosen_model.startswith("groq/"):
-        model_path = chosen_model          # already prefixed
+    # Models like "groq/compound-mini" or "groq/compound" already start with "groq/".
+    # To query the Groq API provider, the LiteLLM format must be "groq/groq/compound-mini",
+    # where the first "groq/" specifies the provider, and the remainder "groq/compound-mini"
+    # is the actual model ID sent to Groq.
+    if chosen_model.startswith("groq/") and chosen_model not in ("groq/compound-mini", "groq/compound"):
+        model_path = chosen_model
     else:
-        model_path = f"groq/{chosen_model}"  # e.g. groq/meta-llama/llama-4-scout-17b-16e-instruct
+        model_path = f"groq/{chosen_model}"
 
     # Per-model char budgets — sized to stay comfortably under each model's TPM limit.
     if chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
