@@ -15,7 +15,12 @@ class Config:
     # Format: https://<your-clerk-domain>/.well-known/jwks.json
     CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "")
     CRON_SECRET = os.getenv("CRON_SECRET")
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///pitchpulse.db")
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        if os.path.exists("/data"):
+            DATABASE_URL = "sqlite:////data/pitchpulse.db"
+        else:
+            DATABASE_URL = "sqlite:///pitchpulse.db"
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", 24))
