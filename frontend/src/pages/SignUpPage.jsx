@@ -4,72 +4,30 @@ import { motion } from 'framer-motion'
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen bg-bg-light dark:bg-bg flex relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 grid-pattern opacity-50 pointer-events-none" />
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-accent/[0.04] blur-[100px] rounded-full pointer-events-none" />
+    <div className="min-h-screen w-full bg-white dark:bg-bg font-sans text-neutral-950 dark:text-tx-primary antialiased selection:bg-neutral-900 selection:text-white relative flex flex-col lg:flex-row overflow-x-hidden">
       
-      {/* Left branding panel (desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center relative z-10 p-12">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-md"
-        >
-          <Link to="/" className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center">
-              <span className="text-white font-display font-bold text-lg">P</span>
-            </div>
-            <span className="font-display font-bold text-2xl text-tx-primary-light dark:text-tx-primary">PitchPulse</span>
-          </Link>
-          <h2 className="text-4xl font-display font-bold mb-4 text-gradient leading-tight">
-            Start winning meetings.
-          </h2>
-          <p className="text-lg text-tx-secondary-light dark:text-tx-secondary leading-relaxed">
-            Create your free account in seconds. No credit card. No commitment. Just better meeting prep.
-          </p>
-          <div className="mt-12 p-6 rounded-2xl border border-border dark:border-[rgba(255,255,255,0.06)] bg-surface-light dark:bg-surface">
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-3xl font-display font-bold text-tx-primary-light dark:text-tx-primary">Free</span>
-              <span className="text-sm text-tx-tertiary">forever</span>
-            </div>
-            <ul className="space-y-2.5">
-              {[
-                '3 briefs per hour',
-                '10 sections of intelligence',
-                'Save and share briefs',
-                'Watchlist up to 50 companies',
-                'Email scheduled delivery'
-              ].map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-tx-secondary">
-                  <span className="text-accent text-xs">✓</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Sign-up form */}
-      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full flex flex-col items-center"
-        >
-          <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
-            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+      {/* Left Form Section */}
+      <div className="flex w-full flex-col lg:w-1/2 min-h-screen justify-between relative">
+        {/* Header Branding */}
+        <div className="p-6 md:p-10 absolute md:top-4 md:left-4 top-2 left-2 z-20">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-accent rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-white font-display font-bold text-sm">P</span>
             </div>
-            <span className="font-display font-bold text-lg text-tx-primary-light dark:text-tx-primary">PitchPulse</span>
-          </div>
+            <span className="text-lg md:text-xl font-display font-bold tracking-tight text-tx-primary-light dark:text-tx-primary">PITCHPULSE</span>
+          </Link>
+        </div>
 
-          <div className="w-full max-w-sm bg-[#f4f4f5] dark:bg-[#1c1c1e] rounded-[32px] p-2 border border-border dark:border-[rgba(255,255,255,0.06)] shadow-xl">
+        {/* Form Container */}
+        <div className="flex flex-1 items-center justify-center p-6 md:p-10 mt-16 md:mt-20">
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            className="w-full max-w-[420px]"
+          >
             <SignUp 
-              routing="path"
+              routing="path" 
               path="/sign-up"
               fallbackRedirectUrl="/onboarding"
               appearance={{
@@ -78,24 +36,38 @@ export default function SignUpPage() {
                   fontFamily: 'Inter, system-ui, sans-serif',
                 },
                 elements: {
-                  card: 'border-0 shadow-none bg-white dark:bg-[#0b0b0c] rounded-[26px] px-2 py-4',
-                  headerTitle: 'font-display text-xl sm:text-2xl font-extrabold text-tx-primary-light dark:text-tx-primary',
-                  headerSubtitle: 'text-xs text-tx-secondary-light dark:text-tx-secondary leading-relaxed',
-                  formButtonPrimary: 'bg-accent hover:bg-accent-light text-white font-semibold rounded-xl py-3 transition-all active:scale-[0.98] shadow-md shadow-accent/10',
-                  formFieldInput: 'bg-[#f4f4f5] dark:bg-[#1c1c1e] border-0 rounded-xl focus:ring-1 focus:ring-accent/40 text-tx-primary-light dark:text-tx-primary',
-                  footerActionLink: 'text-accent hover:text-accent-light font-semibold',
-                  socialButtonsBlockButton: 'border border-[#e4e4e7] dark:border-[rgba(255,255,255,0.06)] hover:bg-[#f4f4f5] dark:hover:bg-[#1c1c1e] rounded-xl text-tx-primary-light dark:text-tx-primary',
-                  dividerLine: 'bg-border dark:bg-[rgba(255,255,255,0.06)]',
-                  dividerText: 'text-tx-tertiary uppercase text-[10px] tracking-wider font-semibold',
+                  card: 'border-0 shadow-none bg-transparent w-full p-0',
+                  headerTitle: 'font-display text-2xl sm:text-3xl font-bold tracking-tight text-tx-primary-light dark:text-tx-primary text-center mb-1',
+                  headerSubtitle: 'text-sm text-tx-secondary-light dark:text-tx-secondary text-center leading-relaxed mb-6',
+                  formButtonPrimary: 'w-full rounded-full bg-accent hover:bg-accent-light text-white px-6 py-3.5 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] mt-2',
+                  formFieldInput: 'w-full rounded-full border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-5 py-3 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-300 focus:border-accent dark:focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40',
+                  formFieldLabel: 'text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-1',
+                  footerActionLink: 'font-semibold text-accent hover:text-accent-light hover:underline',
+                  socialButtonsBlockButton: 'flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#141414] px-6 py-3 text-sm font-medium text-neutral-700 dark:text-neutral-300 transition-colors hover:bg-neutral-50 dark:hover:bg-surface-raised active:bg-neutral-100',
+                  dividerLine: 'bg-neutral-200 dark:bg-[rgba(255,255,255,0.06)]',
+                  dividerText: 'px-4 text-sm text-neutral-400',
                   footer: 'bg-transparent',
-                  footerActionText: 'text-tx-secondary text-xs',
+                  footerActionText: 'text-neutral-500 text-sm mt-5',
                   identityPreviewText: 'text-tx-primary-light dark:text-tx-primary',
                   identityPreviewEditButton: 'text-accent hover:text-accent-light',
+                  formFieldInputShowPasswordButton: 'text-tx-secondary hover:text-tx-primary',
+                  formResendCodeLink: 'text-accent hover:text-accent-light',
                 }
               }}
             />
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Right Image Section */}
+      <div className="hidden lg:block lg:w-1/2 p-4 h-screen sticky top-0">
+        <div className="relative h-full w-full overflow-hidden rounded-[2rem] shadow-xl">
+          <img
+            src="https://assets.watermelon.sh/auth-7.avif"
+            alt="Cloudscape background"
+            className="h-full w-full object-cover"
+          />
+        </div>
       </div>
     </div>
   )
