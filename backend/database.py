@@ -22,8 +22,53 @@ def init_db(app):
     with app.app_context():
         import models
         db.create_all()
+        
+        # Self-healing migrations for scheduled_brief
         try:
             db.session.execute(db.text("ALTER TABLE scheduled_brief ADD COLUMN prompt TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE scheduled_brief ADD COLUMN length VARCHAR(20)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE scheduled_brief ADD COLUMN sections TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Self-healing migrations for watchlist
+        try:
+            db.session.execute(db.text("ALTER TABLE watchlist ADD COLUMN folder_tag VARCHAR(100)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE watchlist ADD COLUMN user_notes TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE watchlist ADD COLUMN default_length VARCHAR(20)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE watchlist ADD COLUMN default_sections TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE watchlist ADD COLUMN last_briefed_at TIMESTAMP"))
             db.session.commit()
         except Exception:
             db.session.rollback()

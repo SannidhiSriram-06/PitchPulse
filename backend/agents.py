@@ -234,7 +234,190 @@ DEEP ANALYSIS MODE: First-principles reasoning. Non-obvious connections. Contrar
         output_instruction = "Each section: full analysis, no word limit. Include all relevant items."
         items_min = "7"
 
-    sections_count = len(sections) if sections else 10
+    # Resolve active sections (default to all if none provided)
+    all_available_sections = [
+        "summary", "news", "financials", "social_sentiment", 
+        "talking_points", "watch_out_for", "leadership_changes", 
+        "job_signals", "recent_launches", "competitor_activity"
+    ]
+    if not sections:
+        sections = all_available_sections
+    else:
+        # Filter to ensure only valid keys are present
+        sections = [s for s in sections if s in all_available_sections]
+
+    # 1. Research topics list for task1
+    research_topics = []
+    topic_num = 1
+    if "news" in sections:
+        research_topics.append(f"{topic_num}. Recent news and press releases (last 30-60 days) — include specific headlines, dates, dollar figures")
+        topic_num += 1
+    if "financials" in sections:
+        research_topics.append(f"{topic_num}. Financial performance, earnings, revenue, funding — cite actual numbers")
+        topic_num += 1
+    if "social_sentiment" in sections:
+        research_topics.append(f"{topic_num}. Social media / employee sentiment — Glassdoor themes, Reddit sentiment, analyst opinions")
+        topic_num += 1
+    if "leadership_changes" in sections:
+        research_topics.append(f"{topic_num}. C-suite and VP-level leadership changes in last 6 months — names, titles, implications")
+        topic_num += 1
+    if "job_signals" in sections:
+        research_topics.append(f"{topic_num}. Strategic job postings — what open roles reveal about priorities and spend")
+        topic_num += 1
+    if "recent_launches" in sections:
+        research_topics.append(f"{topic_num}. New product launches, features, platform changes — dates and market reception")
+        topic_num += 1
+    if "competitor_activity" in sections:
+        research_topics.append(f"{topic_num}. Competitor moves that directly affect this company")
+        topic_num += 1
+    research_topics.append(f"{topic_num}. Partnerships, acquisitions, strategic initiatives") # Always include
+    research_topics_prompt = "\n".join(research_topics)
+
+    # 2. Analysis required list for task2
+    analysis_required = []
+    sect_num = 1
+    if "talking_points" in sections:
+        analysis_required.append(f"""━━━ {sect_num}. TALKING POINTS ({'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} points) ━━━
+Each talking point MUST follow this exact 3-part structure:
+  • HOOK: One specific, verifiable fact about {company_name} from the research (include a number, name, or date)
+  • BRIDGE: Exactly HOW the rep's product/solution addresses or capitalises on that specific fact
+  • OPENER: A conversation starter that references BOTH the company fact AND the product/solution
+    Example format: "I saw [specific fact about company] — we've been helping teams solve exactly this with [specific feature]. Curious how you're thinking about it."
+BAD talking point (reject these): "Nvidia is a large GPU company investing in AI."
+GOOD talking point: "Nvidia's Blackwell GPU yield rate at TSMC dropped below 60% in Q4 — WaferSense AI's real-time defect classification maps directly onto that problem. Opener: 'We noticed the Blackwell yield press reports — we're working with TSMC-adjacent fabs on exactly this problem. Would love to show you what we're seeing.'\"
+If a PRODUCT DOCUMENTATION section exists in the research, you MUST quote at least one specific metric or feature from it in the talking points.""")
+        sect_num += 1
+
+    if "watch_out_for" in sections:
+        analysis_required.append(f"""━━━ {sect_num}. WATCH OUT FOR ({'2-3' if length == 'short' else '3-5' if length == 'medium' else '5-8'} risks) ━━━
+Each risk: specific trigger + evidence from the research + one concrete mitigation action.""")
+        sect_num += 1
+
+    if "leadership_changes" in sections:
+        analysis_required.append(f"━━━ {sect_num}. LEADERSHIP CHANGES ━━━\nNames, titles, previous companies, and what the change signals about buying priorities.")
+        sect_num += 1
+
+    if "competitor_activity" in sections:
+        analysis_required.append(f"━━━ {sect_num}. COMPETITOR ACTIVITY ━━━\nSpecific actions taken by competitors, with evidence and implications for this deal.")
+        sect_num += 1
+
+    if "recent_launches" in sections:
+        analysis_required.append(f"━━━ {sect_num}. RECENT LAUNCHES ━━━\nProduct/service launches with dates, market reception, and deal relevance.")
+        sect_num += 1
+
+    if "job_signals" in sections:
+        analysis_required.append(f"━━━ {sect_num}. JOB SIGNALS (if data exists) ━━━\nRoles that reveal strategic spend — and how the rep can reference them in conversation.")
+        sect_num += 1
+
+    analysis_required_prompt = "\n\n".join(analysis_required)
+
+    # 3. JSON output structure for task3
+    json_elements = []
+    json_elements.append(f'  "company_name": "{company_name}"')
+    json_elements.append('  "generated_at": "<current ISO timestamp>"')
+    json_elements.append('  "rep_pitch_context": "<1-sentence summary of what the rep is selling and to whom, extracted from the query>"')
+
+    if "summary" in sections:
+        json_elements.append(f"""  "summary": {{
+    "content": "<Company overview: what they do, current momentum, why they matter to the rep's pitch RIGHT NOW. {('2-3' if length == 'short' else '3-4' if length == 'medium' else '5-7')} sentences. Last sentence: why this company is a compelling target for the rep's specific solution.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"]
+  }}""")
+
+    if "news" in sections:
+        json_elements.append(f"""  "news": {{
+    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4-5')} sentences: which recent news items are most relevant to the rep's pitch and why.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"],
+    "items": [{{"headline": "<exact headline>", "summary": "<what happened + why it matters for this specific deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>", "url": "<url>", "date": "<YYYY-MM-DD>", "pitch_relevance": "<one sentence: direct implication for the rep's pitch>"}}]
+  }}""")
+
+    if "financials" in sections:
+        json_elements.append(f"""  "financials": {{
+    "content": "<{('2' if length == 'short' else '3-4' if length == 'medium' else '5-6')} sentences: key financial metrics + what the budget/growth trajectory means for closing a deal with this company.>",
+    "confidence": "high|medium|low",
+    "sources": [],
+    "snapshot": {{
+      "revenue": "<e.g. $81.6B>", "growth": "<e.g. +85% YoY>", "funding": "<if startup>",
+      "market_cap": "<e.g. $2.1T>", "employees": "<headcount>", "disclaimer": "Verify with official filings"
+    }}
+  }}""")
+
+    if "social_sentiment" in sections:
+        json_elements.append(f"""  "social_sentiment": {{
+    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4')} sentences: employee/public sentiment + whether internal morale or public perception creates an opening or risk for the rep.>",
+    "confidence": "high|medium|low",
+    "sources": ["<url>"],
+    "sentiment": "positive|neutral|negative|mixed"
+  }}""")
+
+    if "talking_points" in sections:
+        json_elements.append(f"""  "talking_points": {{
+    "content": "<2-sentence overview of the core pitch angle — what is the single strongest reason this company needs the rep's product right now?>",
+    "confidence": "high|medium|low",
+    "items": [
+      {{
+        "point": "<HOOK: one specific verifiable fact about {company_name} — must include a number, name, or date>",
+        "why_it_matters": "<BRIDGE: exactly how the rep's product addresses this specific fact, citing a specific product feature or metric. Then OPENER: exact words the rep can say in the first 30 seconds of the meeting, referencing both the company fact and the product capability.>"
+      }}
+    ]
+  }}""")
+
+    if "watch_out_for" in sections:
+        json_elements.append(f"""  "watch_out_for": {{
+    "content": "<{('1-2' if length == 'short' else '2-3' if length == 'medium' else '3-4')} sentences: what could kill this deal + how to pre-empt each risk.>",
+    "confidence": "high|medium|low",
+    "items": [{{"risk": "<specific named risk with evidence>", "context": "<why this is a real risk for THIS deal + a concrete mitigation move the rep can make before or during the meeting>"}}]
+  }}""")
+
+    if "leadership_changes" in sections:
+        json_elements.append(f"""  "leadership_changes": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which personnel changes create new buying opportunities or new risks.>",
+    "confidence": "high|medium|low",
+    "items": [{{"name": "<full name>", "role": "<title>", "change": "<what changed, when, where from, and what this signals about budget/priorities for the rep>", "date": "<YYYY-MM-DD>"}}]
+  }}""")
+
+    if "job_signals" in sections:
+        json_elements.append(f"""  "job_signals": {{
+    "content": "<{('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences: what the hiring patterns reveal about where the company is spending — and whether that overlaps with the rep's pitch.>",
+    "confidence": "high|medium|low",
+    "items": [{{"role": "<job title>", "signal": "<what this role signals about company priorities + one specific way the rep can reference this hiring trend in their pitch>"}}]
+  }}""")
+
+    if "recent_launches" in sections:
+        json_elements.append(f"""  "recent_launches": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which launches create integrations opportunities or competitive pressure relevant to the rep's solution.>",
+    "confidence": "high|medium|low",
+    "items": [{{"name": "<product/feature name>", "date": "<YYYY-MM-DD>", "significance": "<market impact + direct relevance to the rep's pitch in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
+  }}""")
+
+    if "competitor_activity" in sections:
+        json_elements.append(f"""  "competitor_activity": {{
+    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: competitive landscape + how competitor moves create urgency or threats for the rep.>",
+    "confidence": "high|medium|low",
+    "items": [{{"competitor": "<company>", "action": "<specific move with date/evidence>", "impact": "<effect on {company_name} + implication for the rep's deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
+  }}""")
+
+    json_structure_prompt = "{\n" + ",\n".join(json_elements) + "\n}"
+
+    # 4. Hard rules list for task3
+    hard_rules = []
+    rule_id = 1
+    if "talking_points" in sections:
+        hard_rules.append(f"{rule_id}. talking_points MUST have {{'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'}} items — populate these FIRST before anything else.")
+        rule_id += 1
+    hard_rules.append(f"{rule_id}. No section 'content' field may be a generic company description — every content field must end with a pitch implication.")
+    rule_id += 1
+    if "watch_out_for" in sections:
+        hard_rules.append(f"{rule_id}. 'watch_out_for' keys: 'risk' and 'context' only.")
+        rule_id += 1
+    if "job_signals" in sections:
+        hard_rules.append(f"{rule_id}. 'job_signals' keys: 'role' and 'signal' only.")
+        rule_id += 1
+    hard_rules.append(f"{rule_id}. Complete the ENTIRE object.")
+    hard_rules_prompt = "\n".join(hard_rules)
+
+    sections_count = len(sections)
     if sections_count > 7:
         per_section_limit = "3 items max per section, 50 words max per item"
     elif sections_count > 4:
@@ -363,14 +546,7 @@ COMPILED RAW RESEARCH:
 {compiled_research}
 
 Synthesize this raw data into a highly structured report covering:
-1. Recent news and press releases (last 30-60 days) — include specific headlines, dates, dollar figures
-2. Financial performance, earnings, revenue, funding — cite actual numbers
-3. Social media / employee sentiment — Glassdoor themes, Reddit sentiment, analyst opinions
-4. C-suite and VP-level leadership changes in last 6 months — names, titles, implications
-5. Strategic job postings — what open roles reveal about priorities and spend
-6. New product launches, features, platform changes — dates and market reception
-7. Competitor moves that directly affect this company
-8. Partnerships, acquisitions, strategic initiatives
+{research_topics_prompt}
 
 IF the PRODUCT DOCUMENTATION section exists in the compiled research:
 - Identify every place where {company_name}'s challenges, priorities, or recent moves
@@ -394,32 +570,7 @@ You are preparing the rep for the most important meeting of their quarter with {
 
 ANALYSIS REQUIRED ({length} brief):
 
-━━━ 1. TALKING POINTS ({'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} points) ━━━
-Each talking point MUST follow this exact 3-part structure:
-  • HOOK: One specific, verifiable fact about {company_name} from the research (include a number, name, or date)
-  • BRIDGE: Exactly HOW the rep's product/solution addresses or capitalises on that specific fact
-  • OPENER: A conversation starter that references BOTH the company fact AND the product/solution
-    Example format: "I saw [specific fact about company] — we've been helping teams solve exactly this with [specific feature]. Curious how you're thinking about it."
-
-BAD talking point (reject these): "Nvidia is a large GPU company investing in AI."
-GOOD talking point: "Nvidia's Blackwell GPU yield rate at TSMC dropped below 60% in Q4 — WaferSense AI's real-time defect classification maps directly onto that problem. Opener: 'We noticed the Blackwell yield press reports — we're working with TSMC-adjacent fabs on exactly this problem. Would love to show you what we're seeing.'"
-
-If a PRODUCT DOCUMENTATION section exists in the research, you MUST quote at least one specific metric or feature from it in the talking points.
-
-━━━ 2. WATCH OUT FOR ({'2-3' if length == 'short' else '3-5' if length == 'medium' else '5-8'} risks) ━━━
-Each risk: specific trigger + evidence from the research + one concrete mitigation action.
-
-━━━ 3. LEADERSHIP CHANGES ━━━
-Names, titles, previous companies, and what the change signals about buying priorities.
-
-━━━ 4. COMPETITOR ACTIVITY ━━━
-Specific actions taken by competitors, with evidence and implications for this deal.
-
-━━━ 5. RECENT LAUNCHES ━━━
-Product/service launches with dates, market reception, and deal relevance.
-
-━━━ 6. JOB SIGNALS (if data exists) ━━━
-Roles that reveal strategic spend — and how the rep can reference them in conversation.
+{analysis_required_prompt}
 
 Be RUTHLESSLY specific. "Build rapport" and "mention ROI" are USELESS. Every sentence must contain a name, number, or date.
 For a "{length}" brief, produce ALL the requested points (no fewer than the minimum counts listed above).
@@ -443,84 +594,11 @@ PITCH-AWARENESS RULES (apply to EVERY section):
 
 OUTPUT THIS EXACT STRUCTURE:
 
-{{
-  "company_name": "{company_name}",
-  "generated_at": "<current ISO timestamp>",
-  "rep_pitch_context": "<1-sentence summary of what the rep is selling and to whom, extracted from the query>",
-  "summary": {{
-    "content": "<Company overview: what they do, current momentum, why they matter to the rep's pitch RIGHT NOW. {('2-3' if length == 'short' else '3-4' if length == 'medium' else '5-7')} sentences. Last sentence: why this company is a compelling target for the rep's specific solution.>",
-    "confidence": "high|medium|low",
-    "sources": ["<url>"]
-  }},
-  "news": {{
-    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4-5')} sentences: which recent news items are most relevant to the rep's pitch and why.>",
-    "confidence": "high|medium|low",
-    "sources": ["<url>"],
-    "items": [{{"headline": "<exact headline>", "summary": "<what happened + why it matters for this specific deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>", "url": "<url>", "date": "<YYYY-MM-DD>", "pitch_relevance": "<one sentence: direct implication for the rep's pitch>"}}]
-  }},
-  "financials": {{
-    "content": "<{('2' if length == 'short' else '3-4' if length == 'medium' else '5-6')} sentences: key financial metrics + what the budget/growth trajectory means for closing a deal with this company.>",
-    "confidence": "high|medium|low",
-    "sources": [],
-    "snapshot": {{
-      "revenue": "<e.g. $81.6B>", "growth": "<e.g. +85% YoY>", "funding": "<if startup>",
-      "market_cap": "<e.g. $2.1T>", "employees": "<headcount>", "disclaimer": "Verify with official filings"
-    }}
-  }},
-  "social_sentiment": {{
-    "content": "<{('2' if length == 'short' else '3' if length == 'medium' else '4')} sentences: employee/public sentiment + whether internal morale or public perception creates an opening or risk for the rep.>",
-    "confidence": "high|medium|low",
-    "sources": ["<url>"],
-    "sentiment": "positive|neutral|negative|mixed"
-  }},
-  "talking_points": {{
-    "content": "<2-sentence overview of the core pitch angle — what is the single strongest reason this company needs the rep's product right now?>",
-    "confidence": "high|medium|low",
-    "items": [
-      {{
-        "point": "<HOOK: one specific verifiable fact about {company_name} — must include a number, name, or date>",
-        "why_it_matters": "<BRIDGE: exactly how the rep's product addresses this specific fact, citing a specific product feature or metric. Then OPENER: exact words the rep can say in the first 30 seconds of the meeting, referencing both the company fact and the product capability.>"
-      }}
-    ]
-  }},
-  "watch_out_for": {{
-    "content": "<{('1-2' if length == 'short' else '2-3' if length == 'medium' else '3-4')} sentences: what could kill this deal + how to pre-empt each risk.>",
-    "confidence": "high|medium|low",
-    "items": [{{"risk": "<specific named risk with evidence>", "context": "<why this is a real risk for THIS deal + a concrete mitigation move the rep can make before or during the meeting>"}}]
-  }},
-  "leadership_changes": {{
-    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which personnel changes create new buying opportunities or new risks.>",
-    "confidence": "high|medium|low",
-    "items": [{{"name": "<full name>", "role": "<title>", "change": "<what changed, when, where from, and what this signals about budget/priorities for the rep>", "date": "<YYYY-MM-DD>"}}]
-  }},
-  "job_signals": {{
-    "content": "<{('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences: what the hiring patterns reveal about where the company is spending — and whether that overlaps with the rep's pitch.>",
-    "confidence": "high|medium|low",
-    "items": [{{"role": "<job title>", "signal": "<what this role signals about company priorities + one specific way the rep can reference this hiring trend in their pitch>"}}]
-  }},
-  "recent_launches": {{
-    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: which launches create integrations opportunities or competitive pressure relevant to the rep's solution.>",
-    "confidence": "high|medium|low",
-    "items": [{{"name": "<product/feature name>", "date": "<YYYY-MM-DD>", "significance": "<market impact + direct relevance to the rep's pitch in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
-  }},
-  "competitor_activity": {{
-    "content": "<{('1-2' if length == 'short' else '2' if length == 'medium' else '3')} sentences: competitive landscape + how competitor moves create urgency or threats for the rep.>",
-    "confidence": "high|medium|low",
-    "items": [{{"competitor": "<company>", "action": "<specific move with date/evidence>", "impact": "<effect on {company_name} + implication for the rep's deal in {('1' if length == 'short' else '2' if length == 'medium' else '2-3')} sentences>"}}]
-  }}
-}}
+{json_structure_prompt}
 
 HARD RULES:
-1. talking_points MUST have {'3-5' if length == 'short' else '5-8' if length == 'medium' else '8-12'} items — populate these FIRST before anything else.
-2. No section "content" field may be a generic company description — every content field must end with a pitch implication.
-3. "watch_out_for" keys: "risk" and "context" only.
-4. "job_signals" keys: "role" and "signal" only.
-5. If no data exists for a section: content = "No data found", confidence = "low", items = [].
-6. Complete the ENTIRE object — if token budget is tight, shorten social_sentiment and job_signals last.
-7. Never wrap in markdown. Output starts with {{ and ends with }}.
+{hard_rules_prompt}
 """,
-                expected_output="Valid complete JSON object matching the schema exactly. Nothing else.",
-                agent=formatter
             )
 
             crew = Crew(
