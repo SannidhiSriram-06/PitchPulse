@@ -29,8 +29,12 @@ const avgWords = (text = '', items = []) => {
 }
 
 // Per-section base delay (seconds) so sections cascade nicely
-const buildDelays = (briefData, sectionIds) => {
+const buildDelays = (briefData, sectionIds, skipAnimation) => {
   const delays = {}
+  if (skipAnimation) {
+    sectionIds.forEach(id => { delays[id] = 0 })
+    return delays
+  }
   let cursor = 0.15   // brief header takes ~0.15s to appear
   const SPEED = 0.016 // seconds per word
   const GAP = 0.4     // extra pause before next section begins
@@ -221,19 +225,19 @@ function GenericItem({ item, sectionId, delay, speed }) {
 
 // ─── Section card ──────────────────────────────────────────────────────────────
 
-function SectionCard({ sectionId, sectionData, baseDelay }) {
+function SectionCard({ sectionId, sectionData, baseDelay, skipAnimation }) {
   if (!sectionData) return null
 
-  const WORD_SPEED = 0.016
+  const WORD_SPEED = skipAnimation ? 0 : 0.016
   const { content = '', items = [], confidence, sentiment, snapshot } = sectionData
   const contentWords = content.split(/\s+/).filter(Boolean).length
-  const ITEM_GAP = 0.25  // seconds between item starts
+  const ITEM_GAP = skipAnimation ? 0 : 0.25  // seconds between item starts
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: baseDelay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay: baseDelay, duration: skipAnimation ? 0 : 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl p-5 md:p-6"
     >
       {/* Section header */}
@@ -255,26 +259,28 @@ function SectionCard({ sectionId, sectionData, baseDelay }) {
 
       {/* Content text */}
       {content && (
-        <WordReveal
-          text={content}
-          delay={baseDelay + 0.1}
-          speed={WORD_SPEED}
-          wrapperClass="text-sm md:text-base leading-relaxed text-tx-secondary-light dark:text-tx-secondary mb-4"
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skipAnimation ? 0 : (baseDelay + contentWords * WORD_SPEED + 0.2) }}
+          className="text-sm text-tx-secondary mb-4 leading-relaxed"
+        >
+          <WordReveal text={content} delay={baseDelay} speed={WORD_SPEED} />
+        </motion.div>
       )}
 
-      {/* Sentiment badge */}
+      {/* Sentiment banner */}
       {sentiment && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: baseDelay + contentWords * WORD_SPEED + 0.2 }}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skipAnimation ? 0 : (baseDelay + contentWords * WORD_SPEED + 0.1) }}
           className="flex items-center gap-2 mb-4"
         >
-          <span className="text-xs text-tx-tertiary">Overall:</span>
-          <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full ${
+          <span className="text-xs text-tx-tertiary uppercase tracking-wider font-semibold">Public Sentiment:</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${
             sentiment === 'positive' ? 'bg-emerald-500/10 text-emerald-500' :
-            sentiment === 'negative' ? 'bg-red-500/10 text-red-400' :
+            sentiment === 'negative' ? 'bg-rose-500/10 text-rose-500' :
             sentiment === 'mixed'    ? 'bg-amber-500/10 text-amber-500' :
                                        'bg-gray-500/10 text-gray-400'
           }`}>{sentiment}</span>
@@ -286,7 +292,7 @@ function SectionCard({ sectionId, sectionData, baseDelay }) {
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: baseDelay + contentWords * WORD_SPEED + 0.15 }}
+          transition={{ delay: skipAnimation ? 0 : (baseDelay + contentWords * WORD_SPEED + 0.15) }}
           className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4"
         >
           {Object.entries(snapshot)
@@ -304,7 +310,7 @@ function SectionCard({ sectionId, sectionData, baseDelay }) {
       {items.length > 0 && (
         <div className={`space-y-3 ${content ? 'mt-1' : ''}`}>
           {items.map((item, idx) => {
-            const itemDelay = baseDelay + contentWords * WORD_SPEED + 0.2 + idx * ITEM_GAP
+            const itemDelay = skipAnimation ? 0 : (baseDelay + contentWords * WORD_SPEED + 0.2 + idx * ITEM_GAP)
             if (sectionId === 'talking_points') {
               return <TalkingPointItem key={idx} item={item} delay={itemDelay} speed={WORD_SPEED} />
             }
@@ -325,6 +331,7 @@ function SectionCard({ sectionId, sectionData, baseDelay }) {
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSave }) {
+  const [skipAnimation, setSkipAnimation] = useState(false)
   const [copied, setCopied] = useState(false)
   const topRef = useRef(null)
 
@@ -340,10 +347,10 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
     briefData[id] && (briefData[id].content || briefData[id].items?.length > 0)
   )
 
-  const sectionDelays = buildDelays(briefData, activeSections)
+  const sectionDelays = buildDelays(briefData, activeSections, skipAnimation)
 
   // Total animation duration (rough) for the "View full brief" button reveal
-  const lastDelay = Math.max(...Object.values(sectionDelays)) + 1.5
+  const lastDelay = skipAnimation ? 0 : Math.max(...Object.values(sectionDelays)) + 1.5
 
   const copyLink = async () => {
     try {
@@ -375,7 +382,7 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
           <WordReveal
             text={briefData.company_name || 'Company Brief'}
             delay={0.05}
-            speed={0.04}
+            speed={skipAnimation ? 0 : 0.04}
             wrapperClass="text-2xl md:text-3xl font-display font-bold text-tx-primary-light dark:text-tx-primary"
           />
         </div>
@@ -387,6 +394,14 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
           transition={{ delay: 0.3 }}
           className="flex items-center gap-2 shrink-0"
         >
+          {!skipAnimation && (
+            <button
+              onClick={() => setSkipAnimation(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-accent/25 hover:border-accent/40 bg-accent/5 text-xs text-accent hover:text-accent-light font-semibold transition-all active:scale-95"
+            >
+              ⚡ Skip Animation
+            </button>
+          )}
           <button
             onClick={copyLink}
             title="Copy brief link"
@@ -410,7 +425,7 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+          transition={{ delay: skipAnimation ? 0 : 0.2, duration: skipAnimation ? 0 : 0.4 }}
           className="flex items-start gap-3 bg-accent/5 border border-accent/20 rounded-xl px-4 py-3"
         >
           <span className="text-accent shrink-0 mt-0.5">🎯</span>
@@ -418,8 +433,8 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
             <span className="text-[10px] font-bold uppercase tracking-widest text-accent/60 block mb-0.5">Tailored for your pitch</span>
             <WordReveal
               text={briefData.rep_pitch_context}
-              delay={0.25}
-              speed={0.018}
+              delay={skipAnimation ? 0 : 0.25}
+              speed={skipAnimation ? 0 : 0.018}
               wrapperClass="text-sm text-tx-secondary-light dark:text-tx-secondary"
             />
           </div>
@@ -433,6 +448,7 @@ export default function StreamingBriefPreview({ brief, briefId, onOpenFull, onSa
           sectionId={id}
           sectionData={briefData[id]}
           baseDelay={sectionDelays[id]}
+          skipAnimation={skipAnimation}
         />
       ))}
 

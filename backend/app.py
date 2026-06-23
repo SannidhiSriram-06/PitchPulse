@@ -96,7 +96,7 @@ def create_app():
     Config.validate()
 
     origins = Config.FRONTEND_URL if os.getenv("FLASK_ENV", "development") == "production" else "*"
-    CORS(app, origins=origins)
+    CORS(app, origins=origins, max_age=86400)
 
     init_db(app)
 
@@ -405,8 +405,8 @@ def create_app():
 
         # Read into memory first — Werkzeug FileStorage streams can confuse PyPDF2
         raw = file.read()
-        if len(raw) > 5 * 1024 * 1024:
-            return jsonify({'error': 'File too large (max 5MB)'}), 400
+        if len(raw) > 2 * 1024 * 1024:
+            return jsonify({'error': 'File too large (max 2MB)'}), 400
         if len(raw) == 0:
             return jsonify({'error': 'Empty file received'}), 400
 
@@ -414,15 +414,20 @@ def create_app():
             import PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(raw))
             text_parts = []
-            for page in reader.pages[:30]:
+            for page in reader.pages[:5]:
                 t = page.extract_text()
                 if t:
                     text_parts.append(t)
             text = '\n'.join(text_parts).strip()
-            print(f"[PDF] Extracted {len(text)} chars from {len(reader.pages)} pages")
+            num_pages = len(reader.pages)
+            print(f"[PDF] Extracted {len(text)} chars from {num_pages} pages")
             if not text:
                 return jsonify({'error': 'Could not extract text — PDF may be scanned or image-only'}), 400
-            return jsonify({'text': text[:8000], 'pages': len(reader.pages)})
+            
+            res_data = jsonify({'text': text[:8000], 'pages': num_pages})
+            del reader
+            del raw
+            return res_data
         except ImportError:
             return jsonify({'error': 'PyPDF2 not installed on server — run: pip install PyPDF2'}), 501
         except Exception as e:
@@ -1020,5 +1025,6 @@ app = create_app()
 
 if __name__ == '__main__':
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        start_scheduler_thread(app)
+        if os.getenv("FLASK_ENV", "development") != "production":
+            start_scheduler_thread(app)
     app.run(host='0.0.0.0', port=5001, debug=True)

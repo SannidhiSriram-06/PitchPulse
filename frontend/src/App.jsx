@@ -1,21 +1,23 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { useTheme } from './hooks/useTheme'
 import useAuthStore from './store/authStore'
 import api from './lib/api'
 
-import LandingPage       from './pages/LandingPage'
-import SignInPage        from './pages/SignInPage'
-import SignUpPage        from './pages/SignUpPage'
-import OnboardingPage    from './pages/OnboardingPage'
-import DashboardPage     from './pages/DashboardPage'
-import BriefGeneratorPage from './pages/BriefGeneratorPage'
-import BriefDisplayPage  from './pages/BriefDisplayPage'
-import SharePage         from './pages/SharePage'
-import HistoryPage       from './pages/HistoryPage'
-import SettingsPage      from './pages/SettingsPage'
-import NotFoundPage      from './pages/NotFoundPage'
+// Route-based code splitting
+const LandingPage       = lazy(() => import('./pages/LandingPage'))
+const SignInPage        = lazy(() => import('./pages/SignInPage'))
+const SignUpPage        = lazy(() => import('./pages/SignUpPage'))
+const OnboardingPage    = lazy(() => import('./pages/OnboardingPage'))
+const DashboardPage     = lazy(() => import('./pages/DashboardPage'))
+const BriefGeneratorPage = lazy(() => import('./pages/BriefGeneratorPage'))
+const BriefDisplayPage  = lazy(() => import('./pages/BriefDisplayPage'))
+const SharePage         = lazy(() => import('./pages/SharePage'))
+const HistoryPage       = lazy(() => import('./pages/HistoryPage'))
+const SettingsPage      = lazy(() => import('./pages/SettingsPage'))
+const NotFoundPage      = lazy(() => import('./pages/NotFoundPage'))
+
 import ProtectedRoute    from './components/ProtectedRoute'
 import CommandPalette    from './components/CommandPalette'
 import PWAInstallPrompt  from './components/PWAInstallPrompt'
@@ -29,6 +31,11 @@ export default function App() {
   const { user: clerkUser, isLoaded } = useUser()
   const { setUser, clearUser } = useAuthStore()
   const { tourActive, setTourActive } = usePrefsStore()
+
+  // Warm up Render backend immediately on frontend load
+  useEffect(() => {
+    api.get('/api/health').catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!isLoaded) return
@@ -46,6 +53,13 @@ export default function App() {
     }
   }, [clerkUser, isLoaded, setUser, clearUser, setTourActive, tourActive])
 
+  const suspenseFallback = (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0C0C0C] text-tx-secondary">
+      <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin mb-4" />
+      <span className="text-xs uppercase tracking-widest font-bold text-accent">PitchPulse</span>
+    </div>
+  )
+
   return (
     <BrowserRouter>
       <SquiCircleFilter />
@@ -55,26 +69,28 @@ export default function App() {
       {clerkUser && <CommandPalette />}
       {clerkUser && <PWAInstallPrompt />}
 
-      <Routes>
-        {/* Public */}
-        <Route path="/"                    element={<LandingPage />} />
-        <Route path="/sign-in"             element={<SignInPage />} />
-        <Route path="/sign-up"             element={<SignUpPage />} />
-        <Route path="/brief/share/:token"  element={<SharePage />} />
+      <Suspense fallback={suspenseFallback}>
+        <Routes>
+          {/* Public */}
+          <Route path="/"                    element={<LandingPage />} />
+          <Route path="/sign-in"             element={<SignInPage />} />
+          <Route path="/sign-up"             element={<SignUpPage />} />
+          <Route path="/brief/share/:token"  element={<SharePage />} />
 
-        {/* Protected */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/dashboard"  element={<DashboardPage />} />
-          <Route path="/brief/new"  element={<BriefGeneratorPage />} />
-          <Route path="/brief/:id"  element={<BriefDisplayPage />} />
-          <Route path="/history"    element={<HistoryPage />} />
-          <Route path="/settings"   element={<SettingsPage />} />
-        </Route>
+          {/* Protected */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/dashboard"  element={<DashboardPage />} />
+            <Route path="/brief/new"  element={<BriefGeneratorPage />} />
+            <Route path="/brief/:id"  element={<BriefDisplayPage />} />
+            <Route path="/history"    element={<HistoryPage />} />
+            <Route path="/settings"   element={<SettingsPage />} />
+          </Route>
 
-        {/* 404 */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

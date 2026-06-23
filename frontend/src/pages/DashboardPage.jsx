@@ -86,11 +86,13 @@ export default function DashboardPage() {
   const removeWatchlist = async (e, id, name) => {
     e.stopPropagation()
     if (confirm(`Remove ${name} from watchlist?`)) {
+      const originalWatchlist = watchlist
+      setWatchlist(prev => prev.filter(w => w.id !== id))
+      toast.success(`${name} removed from watchlist`)
       try {
         await api.delete(`/api/watchlist/${id}`)
-        setWatchlist(prev => prev.filter(w => w.id !== id))
-        toast.success(`${name} removed from watchlist`)
       } catch {
+        setWatchlist(originalWatchlist)
         toast.error('Failed to remove company')
       }
     }

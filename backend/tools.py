@@ -9,6 +9,7 @@ from config import Config
 # Font: Space Grotesk + Inter + Berkeley Mono
 
 _search_max_results = 5
+_search_depth = "advanced"
 
 # NOTE: This global is only used by the direct ._run() call path in agents.py.
 # It is reset at the top of run_brief() and aggregated via += across all queries.
@@ -16,11 +17,61 @@ _search_max_results = 5
 # tuple from run_brief() instead of reading this directly.
 _search_total_results = 0
 
+import sqlite3
+import os
+from datetime import datetime, timedelta
+
+CACHE_DB = os.path.join(os.path.dirname(__file__), "api_cache.db")
+
+def get_cached_val(key):
+    try:
+        conn = sqlite3.connect(CACHE_DB)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS api_cache (key TEXT PRIMARY KEY, value TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        conn.commit()
+        
+        cursor.execute("SELECT value, created_at FROM api_cache WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        if row:
+            val, created_str = row
+            try:
+                created_at = datetime.fromisoformat(created_str)
+            except ValueError:
+                created_at = datetime.strptime(created_str.split(".")[0], "%Y-%m-%dT%H:%M:%S")
+            if datetime.utcnow() - created_at < timedelta(hours=24):
+                return val
+            else:
+                cursor.execute("DELETE FROM api_cache WHERE key = ?", (key,))
+                conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[Cache] Error reading: {e}")
+    return None
+
+def set_cached_val(key, val):
+    try:
+        conn = sqlite3.connect(CACHE_DB)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS api_cache (key TEXT PRIMARY KEY, value TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("INSERT OR REPLACE INTO api_cache (key, value, created_at) VALUES (?, ?, ?)", (key, val, datetime.utcnow().isoformat()))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[Cache] Error writing: {e}")
+
 
 @tool
 def company_web_search(query: str) -> str:
     """Uses Tavily to perform a web search about a company."""
     global _search_total_results
+    
+    # Check cache first
+    cache_key = f"tavily:{_search_depth}:{query}"
+    cached = get_cached_val(cache_key)
+    if cached:
+        print(f"[Cache Hit] Tavily query: {query}")
+        return cached
+
     try:
         if not Config.TAVILY_API_KEY:
             return "Search failed: No TAVILY_API_KEY provided"
@@ -28,7 +79,7 @@ def company_web_search(query: str) -> str:
         client = TavilyClient(api_key=Config.TAVILY_API_KEY)
         response = client.search(
             query=query,
-            search_depth="advanced",
+            search_depth=_search_depth,
             max_results=_search_max_results,
             include_raw_content=False
         )
@@ -45,7 +96,9 @@ def company_web_search(query: str) -> str:
                 f"SOURCE: {url}\nTITLE: {title}\nDATE: {date}\nCONTENT: {content}\n\n"
             )
 
-        return "".join(formatted_results)
+        output = "".join(formatted_results)
+        set_cached_val(cache_key, output)
+        return output
     except Exception as e:
         return f"Search failed: {str(e)}"
 
@@ -53,6 +106,14 @@ def company_web_search(query: str) -> str:
 @tool
 def company_financial_data(company_name: str) -> str:
     """Returns real financial data for a company using Yahoo Finance."""
+    
+    # Check cache first
+    cache_key = f"yfinance:{company_name}"
+    cached = get_cached_val(cache_key)
+    if cached:
+        print(f"[Cache Hit] yfinance query: {company_name}")
+        return cached
+
     try:
         import yfinance as yf
         import httpx
@@ -76,11 +137,13 @@ def company_financial_data(company_name: str) -> str:
             ticker_symbol = quotes[0].get("symbol")
 
         if not ticker_symbol:
-            return (
+            output = (
                 f"Financial Overview for {company_name}:\n"
                 f"No public market listing found. This may be a private company.\n"
                 f"Disclaimer: Verify all financial information with official sources before use."
             )
+            set_cached_val(cache_key, output)
+            return output
 
         ticker = yf.Ticker(ticker_symbol)
         info = ticker.info or {}
@@ -126,7 +189,9 @@ def company_financial_data(company_name: str) -> str:
             f"Verify with official filings before quoting in meetings."
         )
 
-        return "\n".join(lines)
+        output = "\n".join(lines)
+        set_cached_val(cache_key, output)
+        return output
 
     except Exception as e:
         return (

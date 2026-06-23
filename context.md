@@ -141,22 +141,24 @@ Pitchpulse_Upgrade/
   `POST /api/cron/process-scheduled`
 
 ## Not Yet Built
-- Frontend (React/Next.js/Vite application).
-- Strict Clerk JWT validation with public key (bypassed for testing).
-- Deployment scripts.
-- Phase 3: React/Vite frontend with Clerk auth integration.
+- Integration for Pro Tier billing (Stripe).
+- Webhook endpoints to handle Clerk updates/deletions robustly.
+- Calendar integrations for automated event-based triggers.
 
-## Decisions & Why
-- Used SQLite for quick dev setup, but mapped Postgres URLs for immediate production readiness (Render quirk).
-- Leveraged LiteLLM via CrewAI to connect seamlessly to Groq's high-speed API.
+## Decisions, Hosting & Why
+- **Frontend Hosting**: Vercel acts as a static host, serving the Vite + React build.
+- **Backend Hosting**: Render hosts the Python/Flask API, running on Gunicorn.
+- **Database**: Supabase (PostgreSQL) is the production database, resolving connection issues with SQLite resetting on Render deployments.
+- **Agent Framework**: Leveraged LiteLLM via CrewAI to connect seamlessly to Groq's high-speed API.
 
 ## Known Issues and Watch-outs
-- Rate limits on Groq and Tavily (handle 429 errors appropriately).
-- Apple M-series chips typically use port 5000 for AirPlay, hence port 5001 is used.
-- LLM outputs can occasionally wrap JSON in markdown even when instructed not to, handled robustly in `_extract_json()`.
-- CrewAI event pairing mismatch warnings — harmless, ignore
-- LiteLLM botocore warnings — harmless, no AWS SDK needed
-- SECURITY: X-Test-User-Email bypass is active in _get_current_user() — must be removed before Phase 3 frontend build.
+- **Render Ephemeral Disk**: Falling back to SQLite on Render results in data loss during redeployments; `DATABASE_URL` pointing to Supabase must be set.
+- **Rate limits** on Groq and Tavily (handle 429 errors appropriately).
+- **Apple M-series chips** typically use port 5000 for AirPlay, hence port 5001 is used.
+- **LLM outputs** can occasionally wrap JSON in markdown even when instructed not to, handled robustly in `_extract_json()`.
+- **CrewAI event pairing mismatch warnings** — harmless, ignore.
+- **LiteLLM botocore warnings** — harmless, no AWS SDK needed.
+- **Duplicate Schedulers**: If running multiple Gunicorn workers, the background thread scheduler triggers duplicate jobs.
 
 ## Test Commands
 1. `cd "backend"`
@@ -223,11 +225,11 @@ Users log in/sign up via Clerk UI components. A global token exposer (`ClerkToke
 - `VITE_API_URL`: Backend URL (http://localhost:5001)
 
 ### Status:
-- The `X-Test-User-Email` test bypass in `backend/app.py` has been fully removed.
 - End-to-end functionality (Auth -> Generate -> Display) is working correctly.
+- Codebase optimization guides ([speed.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/speed.md)), bug logs ([bugs.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/bugs.md)), and free-tier quotas ([limits.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/limits.md)) have been added to the project root to document performance strategy, resource limits, and resolve deploy-related data loss issues.
 
 ### What is NOT yet built (Phase 4 polish items):
-- Complex/Real-time socket updates for brief generation (currently relies on static frontend timer).
+- Complex/Real-time socket updates/SSE for brief generation (currently relies on static frontend timer).
 - Integration for Pro Tier billing (Stripe).
 - Webhook endpoints to handle Clerk updates/deletions robustly.
 - Calendar integrations for automated event-based triggers.

@@ -10,7 +10,7 @@ This document serves as an exhaustive reference for the system’s architecture,
 
 ### 1. Backend Layer (Python / Flask)
 * **Framework**: Flask with CORS enabled (`flask-cors`).
-* **Database & ORM**: SQLAlchemy (`flask-sqlalchemy`) with SQLite by default.
+* **Database & ORM**: SQLAlchemy (`flask-sqlalchemy`) with **Supabase PostgreSQL** in production (and SQLite fallback in local environment).
 * **AI & Agentic Framework**: CrewAI with LiteLLM for multi-agent orchestration.
 * **Authentication**: Clerk JWT token signature verification (using cached JWKS public keys).
 * **External Integrations**:
@@ -205,7 +205,7 @@ sequenceDiagram
     participant FE as React Frontend
     participant BE as Flask Backend
     participant LLM as Groq / LLaMA
-    participant DB as SQLite DB
+    participant DB as Supabase DB
 
     User->>FE: Types query & uploads PDF
     FE->>FE: PyPDF2 extracts text from PDF
@@ -237,12 +237,20 @@ CLERK_JWKS_URL=https://...     # Clerk JWKS endpoint
 CRON_SECRET=super_secret_...   # Cron endpoint security key
 SECRET_KEY=app_signing_...     # Flask session key
 FRONTEND_URL=http://localhost:5173
-DATABASE_URL=sqlite:///pitchpulse.db
+DATABASE_URL=postgresql://...  # Supabase PostgreSQL URL
 FROM_EMAIL=onboarding@resend.dev
 ```
 
 ### Frontend `.env`
 ```ini
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_... # Clerk publishable key
-VITE_API_URL=http://localhost:5000     # Flask backend endpoint
+VITE_API_URL=http://localhost:5001     # Flask backend endpoint (Render)
 ```
+
+---
+
+## ── Reference & Strategy Documents ──
+For deep-dive developer strategies, constraints, and audit notes, refer to:
+* **[speed.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/speed.md)**: Speed & UX performance optimization.
+* **[bugs.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/bugs.md)**: Codebase bug tracker & architectural safety fixes.
+* **[limits.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/limits.md)**: Workspace free tier quotas (Vercel, Render, Supabase, Groq).

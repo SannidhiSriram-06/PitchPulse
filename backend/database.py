@@ -14,8 +14,18 @@ def init_db(app):
     else:
         print(f"[PitchPulse] WARNING: DATABASE_URL not set. Falling back to SQLite: {db_url}")
         
+    if os.getenv("FLASK_ENV") == "production":
+        if not os.getenv("DATABASE_URL") or "sqlite" in db_url.lower():
+            raise RuntimeError("CRITICAL: DATABASE_URL environment variable must be set in production, and SQLite is not allowed.")
+
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 10,
+        "max_overflow": 5,
+        "pool_recycle": 1800,
+        "pool_pre_ping": True
+    }
     
     db.init_app(app)
     

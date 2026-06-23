@@ -42,11 +42,19 @@ export default function BriefDisplayPage() {
   }, [id, navigate])
 
   const toggleSave = async () => {
+    const originalSaved = data?.saved
+    // Optimistic toggle
+    setData(prev => prev ? { ...prev, saved: !originalSaved } : prev)
+    toast.success(!originalSaved ? 'Brief saved' : 'Brief unsaved')
     try {
       const res = await api.patch(`/api/briefs/${id}/save`)
-      setData(prev => ({ ...prev, saved: res.data.saved }))
-      toast.success(res.data.saved ? 'Brief saved' : 'Brief unsaved')
-    } catch { toast.error('Failed to save') }
+      // Sync with final server state
+      setData(prev => prev ? { ...prev, saved: res.data.saved } : prev)
+    } catch {
+      // Revert on error
+      setData(prev => prev ? { ...prev, saved: originalSaved } : prev)
+      toast.error('Failed to save')
+    }
   }
 
   const shareBrief = async () => {

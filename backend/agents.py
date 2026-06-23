@@ -428,6 +428,14 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
     # ── Run tools directly (bypasses LLM tool-calling entirely) ──────────────
     financial_overview = company_financial_data._run(company_name)[:_financial_cap]
 
+    import concurrent.futures
+
+    # Set search depth dynamically based on deep_mind parameter
+    if deep_mind:
+        tools_module._search_depth = "advanced"
+    else:
+        tools_module._search_depth = "basic"
+
     # Base queries always run
     search_queries = [
         f"{company_name} latest news announcements 2024 2025",
@@ -444,11 +452,22 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
             f"{company_name} product launches partnerships strategic initiatives competitors"
         )
 
+    # Parallel search execution
     search_results = []
-    for q in search_queries:
-        res = company_web_search._run(q)
-        # Cap each result block per model token budget
-        search_results.append(f"### {q}\n{res[:_search_per_query_cap]}\n")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(search_queries)) as executor:
+        future_to_query = {executor.submit(company_web_search._run, q): q for q in search_queries}
+        query_to_res = {}
+        for future in concurrent.futures.as_completed(future_to_query):
+            q = future_to_query[future]
+            try:
+                res = future.result()
+            except Exception as e:
+                res = f"Search failed: {e}"
+            query_to_res[q] = res
+        
+        for q in search_queries:
+            res = query_to_res.get(q, "")
+            search_results.append(f"### {q}\n{res[:_search_per_query_cap]}\n")
 
     # Append PDF product context (capped to model budget)
     pdf_section = ""
@@ -463,6 +482,68 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
 
     # Capture total results for the caller
     total_search_results = tools_module._search_total_results
+
+    # If deep_mind is False, execute Fast Mode (single LLM completion)
+    if not deep_mind:
+        print(f"[PitchPulse] Running in Fast Mode (Single LLM Call)...")
+        max_retries = 3
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                current_key = _next_api_key()
+                headers = {
+                    "Authorization": f"Bearer {current_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                system_prompt = (
+                    "You are an elite B2B sales intelligence agent. Your goal is to synthesize raw company research "
+                    "and the representative's sales context into a highly actionable, structured, pre-meeting sales brief.\n\n"
+                    "You must format your entire response as a single, valid JSON object matching the requested schema exactly.\n"
+                    "Do not include any markdown formatting, code block backticks, or preamble. Just the raw JSON.\n\n"
+                    f"HARD RULES:\n{hard_rules_prompt}\n"
+                    f"Output constraint per section: {per_section_limit}"
+                )
+                
+                user_prompt = (
+                    f"Company Name: {company_name}\n"
+                    f"Brief Length: {length}\n"
+                    f"Rep Pitch/Context: {user_context}\n\n"
+                    f"COMPILED RESEARCH DATA:\n{compiled_research}\n\n"
+                    f"Generate the brief matching this EXACT JSON structure:\n{json_structure_prompt}"
+                )
+                
+                payload = {
+                    "model": chosen_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": 0.2,
+                    "response_format": {"type": "json_object"}
+                }
+                
+                res = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    json=payload, headers=headers, timeout=45
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    content = data["choices"][0]["message"]["content"]
+                    return _extract_json(content), total_search_results
+                else:
+                    raise RuntimeError(f"Groq API error {res.status_code}: {res.text}")
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                if any(x in error_str for x in ['rate_limit', '429', 'ratelimit', 'tokens per minute', 'tpm']):
+                    if attempt < max_retries - 1:
+                        wait = (attempt + 1) * 6
+                        print(f"[PitchPulse Fast Mode] Rate limited. Waiting {wait}s before retry...")
+                        time.sleep(wait)
+                        continue
+                raise e
+        raise last_error
 
     # ── CrewAI multi-agent synthesis ─────────────────────────────────────────
     max_retries = 3

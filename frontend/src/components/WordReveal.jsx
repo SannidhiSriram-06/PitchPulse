@@ -20,6 +20,13 @@ export default function WordReveal({
   wrapperClass = '',
 }) {
   if (!text) return null
+  if (speed === 0) {
+    return (
+      <Tag className={wrapperClass}>
+        {text}
+      </Tag>
+    )
+  }
 
   // Split on whitespace but keep newlines as explicit break markers
   const segments = text.split('\n')

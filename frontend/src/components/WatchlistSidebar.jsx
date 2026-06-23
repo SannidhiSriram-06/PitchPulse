@@ -52,11 +52,13 @@ export default function WatchlistSidebar() {
   }
 
   const removeCompany = async (id, name) => {
+    const originalItems = items
+    setItems(items.filter(i => i.id !== id))
+    toast.success(`${name} removed`)
     try {
       await api.delete(`/api/watchlist/${id}`)
-      setItems(items.filter(i => i.id !== id))
-      toast.success(`${name} removed`)
     } catch (e) {
+      setItems(originalItems)
       toast.error('Failed to remove company')
     }
   }

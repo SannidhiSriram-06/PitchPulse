@@ -24,13 +24,13 @@ class User(db.Model):
 
 class Brief(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), index=True)
     company_name = db.Column(db.String(255), nullable=False)
     brief_json = db.Column(db.Text, nullable=False)
     length_used = db.Column(db.String(20), nullable=True)
     sections_used = db.Column(db.Text, nullable=True)
     saved = db.Column(db.Boolean, default=False)
-    share_token = db.Column(db.String(64), nullable=True, unique=True)
+    share_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
     feedback = db.Column(db.Text, nullable=True)
     generation_time_ms = db.Column(db.Integer, nullable=True)
     limited_data = db.Column(db.Boolean, default=False)
@@ -38,7 +38,7 @@ class Brief(db.Model):
 
 class Watchlist(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), index=True)
     company_name = db.Column(db.String(255), nullable=False)
     folder_tag = db.Column(db.String(100), nullable=True)
     user_notes = db.Column(db.Text, nullable=True)
@@ -49,7 +49,7 @@ class Watchlist(db.Model):
 
 class ScheduledBrief(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), index=True)
     company_name = db.Column(db.String(255), nullable=False)
     prompt = db.Column(db.Text, nullable=True)
     scheduled_for = db.Column(db.DateTime, nullable=False)
