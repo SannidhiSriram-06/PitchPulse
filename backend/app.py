@@ -453,13 +453,15 @@ def create_app():
         clean_extracted = re.sub(r"^\[[^\]]+\]\s*", "", extracted_company).strip()
         company_name = _sanitize_company(clean_extracted)
         if not company_name:
-            # Last resort: try to use clean raw query as company name if short
+            # Last resort: use the first 4 words of the clean raw query
             clean_query = re.sub(r"^\[[^\]]+\]\s*", "", raw_query).strip()
             words = clean_query.split()
-            if len(words) <= 4:
-                company_name = _sanitize_company(clean_query)
-        if not company_name:
-            return jsonify({"error": "Couldn't identify a company in your query. Try: 'Research [Company], I'm pitching...'"}), 400
+            if words:
+                company_name = _sanitize_company(" ".join(words[:4]))
+            
+            # If still invalid or empty, use a generic placeholder
+            if not company_name:
+                company_name = "Target Prospect"
 
         length = data.get("length", user.default_brief_length or "medium")
         if length not in ("short", "medium", "long"):
@@ -846,16 +848,14 @@ def create_app():
             if not sanitized_company:
                 clean_prompt = re.sub(r"^\[[^\]]+\]\s*", "", prompt).strip()
                 words = clean_prompt.split()
-                if len(words) <= 4:
-                    sanitized_company = _sanitize_company(clean_prompt)
+                if words:
+                    sanitized_company = _sanitize_company(" ".join(words[:4]))
+            
             if not sanitized_company:
-                return jsonify({"error": "Couldn't identify a company in your prompt. E.g. 'Research Nvidia...'"}), 400
+                sanitized_company = "Target Prospect"
             company_name = sanitized_company
         else:
-            company_name = _sanitize_company(company_name)
-
-        if not company_name:
-            return jsonify({"error": "Invalid company_name or prompt"}), 400
+            company_name = _sanitize_company(company_name) or "Target Prospect"
 
         sections = data.get("sections")
         sb = ScheduledBrief(

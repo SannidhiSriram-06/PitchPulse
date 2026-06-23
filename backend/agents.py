@@ -69,12 +69,12 @@ def extract_company_and_context(prompt, api_key=None):
                         "The user provides a natural language research query which may include: "
                         "the company to research, what they are selling, and their specific pitch angle. "
                         "Extract exactly two fields: "
-                        "1. company_name — the single specific company name to research (just the name, nothing else). "
+                        "1. company_name — the specific company name or companies/subjects to research (e.g. 'Nvidia', 'Nvidia and AMD', 'Google'). If multiple companies or a comparison is requested, include them. "
                         "2. user_context — concise description of what the rep sells and their pitch angle "
                         "(e.g. 'AI software for real-time chip manufacturing defect detection and quality control'). "
                         "Return ONLY valid JSON: "
                         '{\"company_name\": \"<company>\", \"user_context\": \"<pitch>\"}. '
-                        "If no company is identifiable, set company_name to empty string. "
+                        "If no specific company is mentioned, set company_name to the main subject of the query. Never leave it empty. "
                         "No markdown, no explanation, no extra keys."
                     )
                 },
