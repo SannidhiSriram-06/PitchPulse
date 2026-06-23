@@ -467,6 +467,8 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
         
         for q in search_queries:
             res = query_to_res.get(q, "")
+            if res.startswith("Search failed:"):
+                print(f"[Tavily Search Error] Query '{q}' failed: {res}")
             search_results.append(f"### {q}\n{res[:_search_per_query_cap]}\n")
 
     # Append PDF product context (capped to model budget)

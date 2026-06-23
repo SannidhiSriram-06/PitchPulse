@@ -498,11 +498,6 @@ def create_app():
             )
             gen_time_ms = int((time.time() - start_time) * 1000)
 
-            if total_search_results == 0:
-                return jsonify({
-                    "error": "Couldn't find data on this company. Try a larger, publicly known company."
-                }), 400
-
             limited_data = total_search_results < 3
             brief_dict["generated_at"] = datetime.now(timezone.utc).isoformat()
 
