@@ -17,47 +17,54 @@ _search_depth = "advanced"
 # tuple from run_brief() instead of reading this directly.
 _search_total_results = 0
 
-import sqlite3
-import os
+import random
 from datetime import datetime, timedelta
+from flask import current_app
 
-CACHE_DB = os.path.join(os.path.dirname(__file__), "api_cache.db")
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+]
+
+def get_random_user_agent():
+    return random.choice(USER_AGENTS)
 
 def get_cached_val(key):
     try:
-        conn = sqlite3.connect(CACHE_DB)
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS api_cache (key TEXT PRIMARY KEY, value TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-        conn.commit()
-        
-        cursor.execute("SELECT value, created_at FROM api_cache WHERE key = ?", (key,))
-        row = cursor.fetchone()
-        if row:
-            val, created_str = row
-            try:
-                created_at = datetime.fromisoformat(created_str)
-            except ValueError:
-                created_at = datetime.strptime(created_str.split(".")[0], "%Y-%m-%dT%H:%M:%S")
-            if datetime.utcnow() - created_at < timedelta(hours=24):
-                return val
-            else:
-                cursor.execute("DELETE FROM api_cache WHERE key = ?", (key,))
-                conn.commit()
-        conn.close()
+        if current_app:
+            from database import db
+            from models import APICache
+            cache_item = db.session.get(APICache, key) if hasattr(db.session, "get") else APICache.query.get(key)
+            if cache_item:
+                created_at = cache_item.created_at
+                if datetime.utcnow() - created_at < timedelta(hours=24):
+                    return cache_item.value
+                else:
+                    db.session.delete(cache_item)
+                    db.session.commit()
     except Exception as e:
-        print(f"[Cache] Error reading: {e}")
+        print(f"[Cache] DB Read Error: {e}")
     return None
 
 def set_cached_val(key, val):
     try:
-        conn = sqlite3.connect(CACHE_DB)
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS api_cache (key TEXT PRIMARY KEY, value TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-        cursor.execute("INSERT OR REPLACE INTO api_cache (key, value, created_at) VALUES (?, ?, ?)", (key, val, datetime.utcnow().isoformat()))
-        conn.commit()
-        conn.close()
+        if current_app:
+            from database import db
+            from models import APICache
+            cache_item = db.session.get(APICache, key) if hasattr(db.session, "get") else APICache.query.get(key)
+            if cache_item:
+                cache_item.value = val
+                cache_item.created_at = datetime.utcnow()
+            else:
+                cache_item = APICache(key=key, value=val, created_at=datetime.utcnow())
+                db.session.add(cache_item)
+            db.session.commit()
     except Exception as e:
-        print(f"[Cache] Error writing: {e}")
+        print(f"[Cache] DB Write Error: {e}")
+
 
 
 @tool
@@ -114,11 +121,14 @@ def company_financial_data(company_name: str) -> str:
         print(f"[Cache Hit] yfinance query: {company_name}")
         return cached
 
-    try:
-        import yfinance as yf
-        import httpx
+    # Import requests and other modules
+    import requests
+    import yfinance as yf
+    import httpx
 
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        user_agent = get_random_user_agent()
+        headers = {"User-Agent": user_agent}
         search_url = (
             f"https://query2.finance.yahoo.com/v1/finance/search"
             f"?q={httpx.utils.quote(company_name)}&quotesCount=5"
@@ -137,16 +147,19 @@ def company_financial_data(company_name: str) -> str:
             ticker_symbol = quotes[0].get("symbol")
 
         if not ticker_symbol:
-            output = (
-                f"Financial Overview for {company_name}:\n"
-                f"No public market listing found. This may be a private company.\n"
-                f"Disclaimer: Verify all financial information with official sources before use."
-            )
-            set_cached_val(cache_key, output)
-            return output
+            # Fall back to Tavily search right away if ticker not found
+            raise ValueError("No ticker symbol found")
 
-        ticker = yf.Ticker(ticker_symbol)
+        # Set up a requests session with the rotated user agent
+        session = requests.Session()
+        session.headers.update({"User-Agent": user_agent})
+        
+        ticker = yf.Ticker(ticker_symbol, session=session)
         info = ticker.info or {}
+
+        if not info or "totalRevenue" not in info and "marketCap" not in info:
+            # If the response is empty, it's likely blocked or has restricted data
+            raise ValueError("Empty or blocked ticker info")
 
         def fmt_large(val):
             if val is None:
@@ -194,8 +207,33 @@ def company_financial_data(company_name: str) -> str:
         return output
 
     except Exception as e:
-        return (
-            f"Financial Overview for {company_name}:\n"
-            f"Could not retrieve live financial data ({str(e)}).\n"
-            f"Disclaimer: Verify all financial information with official sources before use."
-        )
+        print(f"[yfinance Error] Failed for {company_name}: {e}. Trying Tavily search fallback...")
+        try:
+            client = TavilyClient(api_key=Config.TAVILY_API_KEY)
+            search_query = f"{company_name} stock financials revenue market cap growth employees sector site:finance.yahoo.com OR site:ycharts.com"
+            response = client.search(
+                query=search_query,
+                search_depth="basic",
+                max_results=3
+            )
+            results = response.get("results", [])
+            
+            lines = [
+                f"Financial Overview for {company_name} (Source: Web Search Fallback)",
+            ]
+            for res in results:
+                title = res.get("title", "")
+                content = res.get("content", "")
+                lines.append(f"- {title}: {content}")
+                
+            lines.append("\nDisclaimer: Figures compiled via web search fallback. Verify with official sources before quoting.")
+            output = "\n".join(lines)
+            set_cached_val(cache_key, output)
+            return output
+        except Exception as fallback_err:
+            return (
+                f"Financial Overview for {company_name}:\n"
+                f"Could not retrieve live financial data ({str(fallback_err)}).\n"
+                f"Disclaimer: Verify all financial information with official sources before use."
+            )
+

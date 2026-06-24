@@ -60,3 +60,9 @@ class ScheduledBrief(db.Model):
     last_run_at = db.Column(db.DateTime, nullable=True)
     brief_id = db.Column(db.Integer, db.ForeignKey('brief.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class APICache(db.Model):
+    key = db.Column(db.String(255), primary_key=True)
+    value = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+

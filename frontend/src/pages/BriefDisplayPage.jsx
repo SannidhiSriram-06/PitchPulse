@@ -243,8 +243,45 @@ export default function BriefDisplayPage() {
 
         {/* Stock price visualization */}
         {sectionId === 'financials' && (
-          <StockChart companyName={data.company_name} />
+          (() => {
+            const splitCompanies = (name) => {
+              if (!name) return []
+              // Split by common comparison delimiters
+              const splitters = [/\s+vs\.?\s+/i, /\s+and\s+/i, /\s*,\s*/, /\s+&\s+/i]
+              let currentList = [name]
+              for (const rx of splitters) {
+                let nextList = []
+                for (const item of currentList) {
+                  const parts = item.split(rx).map(p => p.trim()).filter(Boolean)
+                  nextList.push(...parts)
+                }
+                currentList = nextList
+              }
+              // Filter out common filler words that might be left
+              return currentList.filter(c => {
+                const lower = c.toLowerCase()
+                return lower !== 'compare' && lower !== 'comparison' && lower !== 'vs'
+              })
+            }
+            const companies = splitCompanies(data.company_name)
+            if (companies.length > 1) {
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  {companies.map((company, index) => (
+                    <div key={index} className="flex flex-col">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-tx-tertiary mb-2 px-1">
+                        Stock Chart: {company}
+                      </h4>
+                      <StockChart companyName={company} />
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+            return <StockChart companyName={data.company_name} />
+          })()
         )}
+
 
         {/* Sentiment indicator */}
         {sectionData.sentiment && (

@@ -211,10 +211,32 @@ def create_app():
             if not user:
                 real_email, real_name = _fetch_clerk_user_details(clerk_user_id)
                 email = real_email or email or f"{clerk_user_id}@placeholder.com"
-                user = User(clerk_user_id=clerk_user_id, email=email, display_name=real_name)
-                db.session.add(user)
-                db.session.commit()
-                is_new = True
+                
+                # Self-healing: Check if email already exists in database
+                existing_user = User.query.filter_by(email=email).first()
+                if existing_user:
+                    existing_user.clerk_user_id = clerk_user_id
+                    if real_name and not existing_user.display_name:
+                        existing_user.display_name = real_name
+                    db.session.commit()
+                    user = existing_user
+                else:
+                    user = User(clerk_user_id=clerk_user_id, email=email, display_name=real_name)
+                    db.session.add(user)
+                    try:
+                        db.session.commit()
+                        is_new = True
+                    except Exception:
+                        db.session.rollback()
+                        # Fallback query in case of a race condition
+                        existing_user = User.query.filter_by(email=email).first()
+                        if existing_user:
+                            existing_user.clerk_user_id = clerk_user_id
+                            db.session.commit()
+                            user = existing_user
+                        else:
+                            raise
+
 
             if is_new:
                 # Fire-and-forget welcome email (non-blocking)

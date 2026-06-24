@@ -85,3 +85,40 @@ Whenever a new code change is pushed and a deployment cycle is triggered on Verc
 * **Problem**: In `api.js`, any 401 response redirects the user immediately to `/sign-in`. In production environments, slight clock differences (drift) between Render's server and Clerk's authorization servers can make valid tokens appear expired, causing active users to be suddenly logged out mid-session.
 * **Fix**: Implement a retry loop in the Axios interceptor. On a 401 error, attempt to refresh the Clerk token using `getToken(forceRefresh: true)` once, and only redirect to sign-in if the retry also returns a 401.
 
+---
+
+### ⚠️ Bug: Yahoo Finance API Blocking Cloud Server IPs (Render)
+* **Problem**: When running `yfinance` in production on Render, Yahoo Finance frequently blocks requests originating from public cloud IP ranges (e.g. AWS or GCP blocks that Render services run on), returning `403 Forbidden` or `429 Too Many Requests`. This causes financial charts and metrics to fail silently in production while working perfectly in local development.
+* **Fix**:
+  1. Add a custom, randomized User-Agent header (simulating popular desktop browsers) on all HTTP queries inside `tools.py`.
+  2. Implement a fallback parser that extracts core market statistics from public secondary finance APIs or scrape-friendly mirrors if `yfinance` fails.
+
+---
+
+### ⚠️ Bug: Resend Domain Verification Requirement (Email Delivery)
+* **Problem**: The Resend free tier restricts sandbox accounts to sending emails solely to the creator's address (`onboarding@resend.dev`). If a real user registers and signs up for scheduled briefs, Resend will silently reject all emails sent to their domain.
+* **Fix**:
+  1. In the Resend Dashboard, complete custom domain verification (configuring SPF, DKIM, and MX records in your DNS provider).
+  2. Fall back to in-app notification logs or dashboard banners if the email fails due to sandbox restrictions, so users don't think the system failed.
+
+---
+
+### ⚠️ Bug: Ephemeral Search Cache Wiped on Redeploy
+* **Problem**: In `backend/tools.py`, Tavily search and Yahoo Finance results are cached inside a local SQLite file (`api_cache.db`). Since Render containers have ephemeral, stateless disks, this cache file is destroyed and recreated on every deployment. This forces the system to re-execute costly and slow search queries on first-run after a push, increasing API cost and slowing down first briefs.
+* **Fix**: Migrating the cache storage to the primary Supabase PostgreSQL database (e.g. creating an `APICache` table in `models.py`) keeps the cache persistent across deployments and server restarts.
+
+---
+
+### ⚠️ Bug: Clerk Deletion / Duplicate Email DB Crash
+* **Problem**: If a user deletes and recreates their account in Clerk, or if a user signs up using Oauth with an email that already exists in the `user` table under a different `clerk_user_id`, the database throws an `IntegrityError` (Unique Constraint violation on `email`). This completely blocks registration and crashes the onboarding route.
+* **Fix**:
+  1. Set up a Clerk Webhook receiver (`/api/webhooks/clerk`) that deletes or updates the database user record when a Clerk `user.deleted` event occurs.
+  2. Alternatively, in the database creation block, catch unique constraint errors and gracefully associate/migrate the old user record to the new `clerk_user_id`.
+
+---
+
+### ⚠️ Friction: Google OAuth Consent Screen Displays Clerk Branding
+* **Problem**: By default, during Google sign-up/in, Google displays a warning or lists "clerk.dev" as the destination domain because you are redirecting to Clerk's shared endpoints. This creates user trust friction.
+* **Fix**:
+  1. Map a custom subdomain in your DNS provider (e.g., `auth.pitchpulse.app` CNAME records pointing to Clerk).
+  2. Configure and verify the OAuth consent screen inside the Google Cloud Console (APIs & Services) with your app name `PitchPulse`, support email, and logo.
