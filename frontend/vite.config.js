@@ -14,11 +14,23 @@ export default defineConfig({
         theme_color: '#FF6B2C',
         background_color: '#0C0C0C',
         display: 'standalone',
+        start_url: '/dashboard',
+        scope: '/',
+        orientation: 'portrait',
+        categories: ['business', 'productivity'],
         icons: [
-          { src: '/icon-192.png', sizes: '192x192',
-            type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512',
-            type: 'image/png' }
+          {
+            src: '/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
         ]
       }
     })

@@ -34,12 +34,20 @@ class Config:
             "GROQ_API_KEY", "TAVILY_API_KEY",
             "CLERK_SECRET_KEY", "CRON_SECRET", "SECRET_KEY"
         ]
+        is_production = cls.FLASK_ENV == "production"
         for key in required_keys:
             if not getattr(cls, key):
-                print(f"WARNING: Missing required environment variable {key}")
+                msg = f"Missing required environment variable: {key}"
+                if is_production:
+                    raise RuntimeError(f"CRITICAL: {msg}")
+                else:
+                    print(f"WARNING: {msg}")
 
         if not cls.CLERK_JWKS_URL:
-            print("WARNING: CLERK_JWKS_URL not set — JWT signature verification is DISABLED. "
-                  "Set it to https://<your-clerk-domain>/.well-known/jwks.json for production security.")
+            msg = "CLERK_JWKS_URL not set — JWT signature verification is DISABLED."
+            if is_production:
+                raise RuntimeError(f"CRITICAL: {msg} Set it to https://<your-clerk-domain>/.well-known/jwks.json for production security.")
+            else:
+                print(f"WARNING: {msg} Set it to https://<your-clerk-domain>/.well-known/jwks.json for local/dev fallback security.")
         if not cls.RESEND_API_KEY:
             print("INFO: RESEND_API_KEY not set — scheduled brief emails will be skipped.")

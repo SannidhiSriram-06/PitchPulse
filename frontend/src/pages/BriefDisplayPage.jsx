@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2, Mail } from 'lucide-react'
+import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2, Mail, MoreVertical } from 'lucide-react'
 import api from '../lib/api'
 import Layout from '../components/Layout'
 import ExpandableTabs from '../components/ExpandableTabs'
@@ -25,6 +25,7 @@ export default function BriefDisplayPage() {
   const [copiedTooltip, setCopiedTooltip] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [emailing, setEmailing] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   useEffect(() => {
     const fetchBrief = async () => {
@@ -120,27 +121,28 @@ export default function BriefDisplayPage() {
     (briefData[k]?.content || briefData[k]?.items?.length > 0)
   )
 
-  // Collect all sources from all sections
-  const allSources = []
+  // Collect all sources from all sections using a Set for O(n) complexity
+  const sourcesSet = new Set()
   availableSections.forEach(s => {
     const sec = briefData[s]
     if (sec?.sources) {
       sec.sources.forEach(url => {
-        if (url && !allSources.includes(url)) allSources.push(url)
+        if (url) sourcesSet.add(url)
       })
     }
     if (sec?.items) {
       sec.items.forEach(item => {
-        if (item.url && !allSources.includes(item.url)) allSources.push(item.url)
+        if (item.url) sourcesSet.add(item.url)
       })
     }
   })
   // Also add top-level sources
   if (briefData.sources) {
     briefData.sources.forEach(url => {
-      if (url && !allSources.includes(url)) allSources.push(url)
+      if (url) sourcesSet.add(url)
     })
   }
+  const allSources = Array.from(sourcesSet)
 
   const getItemFields = (sectionId, item) => {
     // Robustly extract title and body from any section's item structure
@@ -432,18 +434,31 @@ export default function BriefDisplayPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <MetalIconButton
-                onClick={() => navigate(`/brief/new?company=${encodeURIComponent(data.company_name)}`)}
-                variant="outline"
-                title="Regenerate"
-              >
-                <RefreshCw className="w-4 h-4 text-tx-secondary" />
-              </MetalIconButton>
+              {/* Desktop-only actions */}
+              <div className="hidden sm:flex items-center gap-2">
+                <MetalIconButton
+                  onClick={() => navigate(`/brief/new?company=${encodeURIComponent(data.company_name)}`)}
+                  variant="outline"
+                  title="Regenerate"
+                >
+                  <RefreshCw className="w-4 h-4 text-tx-secondary" />
+                </MetalIconButton>
+                <MetalIconButton
+                  onClick={sendEmail}
+                  variant="outline"
+                  title="Send to email"
+                  disabled={emailing}
+                >
+                  <Mail className={`w-4 h-4 text-tx-secondary ${emailing ? 'animate-pulse' : ''}`} />
+                </MetalIconButton>
+              </div>
+
+              {/* Always visible action buttons */}
               <MetalIconButton
                 onClick={shareBrief}
                 variant="outline"
                 title="Copy share link"
-                className="relative"
+                className="relative animate-pulse-once"
               >
                 <Copy className="w-4 h-4 text-tx-secondary" />
                 <AnimatePresence>
@@ -459,14 +474,7 @@ export default function BriefDisplayPage() {
                   )}
                 </AnimatePresence>
               </MetalIconButton>
-              <MetalIconButton
-                onClick={sendEmail}
-                variant="outline"
-                title="Send to email"
-                disabled={emailing}
-              >
-                <Mail className={`w-4 h-4 text-tx-secondary ${emailing ? 'animate-pulse' : ''}`} />
-              </MetalIconButton>
+
               <MetalIconButton
                 onClick={toggleSave}
                 variant={data.saved ? 'default' : 'outline'}
@@ -474,31 +482,109 @@ export default function BriefDisplayPage() {
               >
                 <Bookmark className={`w-4 h-4 ${data.saved ? 'text-white fill-white' : 'text-tx-secondary'}`} />
               </MetalIconButton>
-              {/* Delete with inline confirm */}
-              {showDeleteConfirm ? (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={deleteBrief}
-                    className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-600 transition"
+
+              {/* Desktop Delete button */}
+              <div className="hidden sm:flex items-center">
+                {showDeleteConfirm ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={deleteBrief}
+                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-600 transition"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="text-xs text-tx-tertiary hover:text-tx-secondary px-2 py-1.5"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <MetalIconButton
+                    onClick={() => setShowDeleteConfirm(true)}
+                    variant="outline"
+                    title="Delete brief"
                   >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="text-xs text-tx-tertiary hover:text-tx-secondary px-2 py-1.5"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <MetalIconButton
-                  onClick={() => setShowDeleteConfirm(true)}
-                  variant="outline"
-                  title="Delete brief"
+                    <Trash2 className="w-4 h-4 text-tx-tertiary hover:text-red-500" />
+                  </MetalIconButton>
+                )}
+              </div>
+
+              {/* Mobile Overflow Menu */}
+              <div className="relative sm:hidden flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreMenu(prev => !prev)}
+                  className="w-11 h-11 flex items-center justify-center border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl text-tx-secondary hover:text-tx-primary transition active:scale-[0.97]"
                 >
-                  <Trash2 className="w-4 h-4 text-tx-tertiary hover:text-red-500" />
-                </MetalIconButton>
-              )}
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                <AnimatePresence>
+                  {showMoreMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                        className="absolute right-0 top-12 bg-white dark:bg-surface-raised border border-border dark:border-[rgba(255,255,255,0.08)] rounded-2xl p-2 w-48 shadow-2xl z-50 flex flex-col gap-1"
+                      >
+                        <button
+                          onClick={() => {
+                            setShowMoreMenu(false)
+                            navigate(`/brief/new?company=${encodeURIComponent(data.company_name)}`)
+                          }}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent/10 hover:text-accent text-xs font-semibold text-tx-secondary transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Regenerate Brief
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowMoreMenu(false)
+                            sendEmail()
+                          }}
+                          disabled={emailing}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent/10 hover:text-accent text-xs font-semibold text-tx-secondary transition-colors disabled:opacity-50"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Send to Email
+                        </button>
+                        <div className="h-px bg-border dark:bg-[rgba(255,255,255,0.05)] my-1" />
+                        
+                        {showDeleteConfirm ? (
+                          <div className="flex flex-col gap-1 p-1">
+                            <span className="text-[10px] text-red-500 font-semibold px-2">Are you sure?</span>
+                            <div className="flex gap-1 mt-1">
+                              <button
+                                onClick={deleteBrief}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold py-1.5 id-confirm rounded-lg transition"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="flex-1 border border-border text-tx-secondary text-[10px] font-bold py-1.5 rounded-lg hover:bg-surface"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-500 text-xs font-semibold text-tx-secondary transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete Brief
+                          </button>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
 

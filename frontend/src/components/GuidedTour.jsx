@@ -2,44 +2,52 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronRight, ChevronLeft, Sparkles, Navigation, Search, Zap, Mail, Sliders } from 'lucide-react'
 
-const TOUR_STEPS = [
-  {
-    title: 'Welcome to PitchPulse! 🚀',
-    content: 'PitchPulse is your AI-powered pre-meeting sales intelligence platform. We scan live web sources and financials to prepare you for any client meeting in 60 seconds. Let\'s take a quick tour of the features.',
-    icon: <Sparkles className="w-8 h-8 text-accent animate-pulse" />,
-    selector: null // Center popup
-  },
-  {
-    title: '1. Quick Brief Search 🔍',
-    content: 'Use the search bar in the top navigation to instantly search for any of your generated company briefs.',
-    icon: <Search className="w-8 h-8 text-accent" />,
-    selector: 'input[placeholder="Search briefs..."]'
-  },
-  {
-    title: '2. Generating a Custom Brief 📋',
-    content: 'Click "New Brief" at any time to create a tailored sales brief. Customize the length, select sections, add client context, or upload a product PDF.',
-    icon: <Zap className="w-8 h-8 text-amber-400" />,
-    selector: 'a[href="/brief/new"]'
-  },
-  {
-    title: '3. The Watchlist Sidebar 📌',
-    content: 'Pin your high-value target accounts in the left sidebar to monitor them at a glance and quickly trigger new briefs before meetings.',
-    icon: <Sliders className="w-8 h-8 text-emerald-400" />,
-    selector: 'aside'
-  },
-  {
-    title: '4. Command Palette (⌘K) ⚡',
-    content: 'Press ⌘K or Ctrl+K anywhere to bring up the global Command Palette. Quickly navigate pages, search commands, or toggle light/dark modes.',
-    icon: <Navigation className="w-8 h-8 text-indigo-400" />,
-    selector: 'button[title="Take Guided Tour"]' // Highlight top nav bar/tour trigger
-  }
-]
-
 export default function GuidedTour({ active, onClose }) {
   const [step, setStep] = useState(0)
   const [targetRect, setTargetRect] = useState(null)
 
-  const currentStep = TOUR_STEPS[step]
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+
+  const tourSteps = [
+    {
+      title: 'Welcome to PitchPulse! 🚀',
+      content: 'PitchPulse is your AI-powered pre-meeting sales intelligence platform. We scan live web sources and financials to prepare you for any client meeting in 60 seconds. Let\'s take a quick tour.',
+      icon: <Sparkles className="w-8 h-8 text-accent animate-pulse" />,
+      selector: null
+    },
+    {
+      title: '1. Quick Brief Search 🔍',
+      content: isMobile 
+        ? 'Tap the search icon in the top navigation to instantly bring up the global search.'
+        : 'Use the search bar in the top navigation to instantly search for any of your generated company briefs.',
+      icon: <Search className="w-8 h-8 text-accent" />,
+      selector: isMobile ? 'button[title="Search / Command Palette"]' : 'input[placeholder="Search briefs..."]'
+    },
+    {
+      title: '2. Generating a Custom Brief 📋',
+      content: 'Click "New Brief" at any time to create a tailored sales brief. Customize the length, select sections, add client context, or upload a product PDF.',
+      icon: <Zap className="w-8 h-8 text-amber-400" />,
+      selector: 'a[href="/brief/new"]'
+    },
+    {
+      title: isMobile ? '3. Watchlist Accounts 📌' : '3. The Watchlist Sidebar 📌',
+      content: isMobile
+        ? 'Monitor your pinned high-value target accounts on your dashboard watchlist tab.'
+        : 'Pin your high-value target accounts in the left sidebar to monitor them at a glance and quickly trigger new briefs before meetings.',
+      icon: <Sliders className="w-8 h-8 text-emerald-400" />,
+      selector: isMobile ? null : 'aside'
+    },
+    {
+      title: isMobile ? '4. Command Palette ⚡' : '4. Command Palette (⌘K) ⚡',
+      content: isMobile
+        ? 'Tap the search icon in the top navigation to open the Command Palette. Quickly navigate pages or toggle themes.'
+        : 'Press ⌘K or Ctrl+K anywhere to bring up the global Command Palette. Quickly navigate pages, search commands, or toggle light/dark modes.',
+      icon: <Navigation className="w-8 h-8 text-indigo-400" />,
+      selector: isMobile ? 'button[title="Search / Command Palette"]' : 'button[title="Take Guided Tour"]'
+    }
+  ]
+
+  const currentStep = tourSteps[step]
 
   // Track the bounding rectangle of the target element
   useEffect(() => {
@@ -78,7 +86,7 @@ export default function GuidedTour({ active, onClose }) {
   if (!active) return null
 
   const handleNext = () => {
-    if (step < TOUR_STEPS.length - 1) {
+    if (step < tourSteps.length - 1) {
       setStep(step + 1)
     } else {
       localStorage.setItem('pp_tour_completed', 'true')
@@ -177,7 +185,7 @@ export default function GuidedTour({ active, onClose }) {
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <span className="text-[10px] uppercase font-mono tracking-widest text-tx-tertiary">
-              Step {step + 1} of {TOUR_STEPS.length}
+              Step {step + 1} of {tourSteps.length}
             </span>
             <button
               onClick={onClose}
@@ -211,7 +219,7 @@ export default function GuidedTour({ active, onClose }) {
             </button>
             
             <div className="flex items-center gap-1">
-              {TOUR_STEPS.map((_, i) => (
+              {tourSteps.map((_, i) => (
                 <div
                   key={i}
                   className={`w-1 h-1 rounded-full transition-all ${
@@ -225,7 +233,7 @@ export default function GuidedTour({ active, onClose }) {
               onClick={handleNext}
               className="flex items-center gap-1 px-4 py-2 bg-accent hover:bg-accent-light text-white text-xs font-bold rounded-xl transition-all"
             >
-              {step === TOUR_STEPS.length - 1 ? 'Finish Tour' : 'Next Step'} <ChevronRight className="w-3.5 h-3.5" />
+              {step === tourSteps.length - 1 ? 'Finish Tour' : 'Next Step'} <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </motion.div>

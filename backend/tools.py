@@ -1,24 +1,47 @@
 from crewai.tools import tool
 from tavily import TavilyClient
 from config import Config
+import sys
+import types
+import threading
 
-# DESIGN TOKENS
-# Dark bg: #0C0C0C | Surface: #141414 | Surface raised: #1C1C1C
-# Border: rgba(255,255,255,0.08) | Accent orange: #FF6B2C
-# Light bg: #FAFAF8 | Light surface: #FFFFFF
-# Font: Space Grotesk + Inter + Berkeley Mono
+class ToolsModule(types.ModuleType):
+    def __init__(self, name):
+        super().__init__(name)
+        self._local_state = threading.local()
 
-_search_max_results = 5
-_search_depth = "advanced"
+    @property
+    def _search_max_results(self):
+        if not hasattr(self._local_state, "max_results"):
+            self._local_state.max_results = 5
+        return self._local_state.max_results
 
-# NOTE: This global is only used by the direct ._run() call path in agents.py.
-# It is reset at the top of run_brief() and aggregated via += across all queries.
-# In single-worker dev this is fine; in multi-worker production use the returned
-# tuple from run_brief() instead of reading this directly.
-_search_total_results = 0
+    @_search_max_results.setter
+    def _search_max_results(self, val):
+        self._local_state.max_results = val
+
+    @property
+    def _search_depth(self):
+        if not hasattr(self._local_state, "depth"):
+            self._local_state.depth = "advanced"
+        return self._local_state.depth
+
+    @_search_depth.setter
+    def _search_depth(self, val):
+        self._local_state.depth = val
+
+    @property
+    def _search_total_results(self):
+        if not hasattr(self._local_state, "total_results"):
+            self._local_state.total_results = 0
+        return self._local_state.total_results
+
+    @_search_total_results.setter
+    def _search_total_results(self, val):
+        self._local_state.total_results = val
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import current_app
 
 USER_AGENTS = [
@@ -40,7 +63,9 @@ def get_cached_val(key):
             cache_item = db.session.get(APICache, key) if hasattr(db.session, "get") else APICache.query.get(key)
             if cache_item:
                 created_at = cache_item.created_at
-                if datetime.utcnow() - created_at < timedelta(hours=24):
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) - created_at < timedelta(hours=24):
                     return cache_item.value
                 else:
                     db.session.delete(cache_item)
@@ -57,9 +82,9 @@ def set_cached_val(key, val):
             cache_item = db.session.get(APICache, key) if hasattr(db.session, "get") else APICache.query.get(key)
             if cache_item:
                 cache_item.value = val
-                cache_item.created_at = datetime.utcnow()
+                cache_item.created_at = datetime.now(timezone.utc)
             else:
-                cache_item = APICache(key=key, value=val, created_at=datetime.utcnow())
+                cache_item = APICache(key=key, value=val, created_at=datetime.now(timezone.utc))
                 db.session.add(cache_item)
             db.session.commit()
     except Exception as e:
@@ -70,10 +95,12 @@ def set_cached_val(key, val):
 @tool
 def company_web_search(query: str) -> str:
     """Uses Tavily to perform a web search about a company."""
-    global _search_total_results
+    mod = sys.modules[__name__]
+    search_depth = mod._search_depth
+    search_max_results = mod._search_max_results
     
     # Check cache first
-    cache_key = f"tavily:{_search_depth}:{query}"
+    cache_key = f"tavily:{search_depth}:{query}"
     cached = get_cached_val(cache_key)
     if cached:
         print(f"[Cache Hit] Tavily query: {query}")
@@ -86,12 +113,12 @@ def company_web_search(query: str) -> str:
         client = TavilyClient(api_key=Config.TAVILY_API_KEY)
         response = client.search(
             query=query,
-            search_depth=_search_depth,
-            max_results=_search_max_results,
+            search_depth=search_depth,
+            max_results=search_max_results,
             include_raw_content=False
         )
         results = response.get("results", [])
-        _search_total_results += len(results)  # AGGREGATE across all queries
+        mod._search_total_results += len(results)  # AGGREGATE across all queries
 
         formatted_results = []
         for res in results:
@@ -236,4 +263,6 @@ def company_financial_data(company_name: str) -> str:
                 f"Could not retrieve live financial data ({str(fallback_err)}).\n"
                 f"Disclaimer: Verify all financial information with official sources before use."
             )
+
+sys.modules[__name__].__class__ = ToolsModule
 

@@ -72,12 +72,12 @@ export default function VercelNav() {
         </Link>
 
         {breadcrumbs.map((crumb, idx) => (
-          <div key={idx} className="flex items-center gap-1 min-w-0">
+          <div key={idx} className={`flex items-center gap-1 min-w-0 ${idx < breadcrumbs.length - 1 ? 'hidden xs:flex' : ''}`}>
             <ChevronRight className="w-3 h-3 text-tx-tertiary shrink-0" />
             {crumb.path ? (
               <Link
                 to={crumb.path}
-                className={`text-sm font-medium transition-colors truncate max-w-[90px] sm:max-w-[160px] ${
+                className={`text-sm font-medium transition-colors truncate max-w-[120px] sm:max-w-[160px] ${
                   idx === breadcrumbs.length - 1
                     ? 'text-tx-primary-light dark:text-tx-primary font-semibold'
                     : 'text-tx-tertiary hover:text-tx-primary-light dark:hover:text-tx-primary'
@@ -86,7 +86,7 @@ export default function VercelNav() {
                 {crumb.label}
               </Link>
             ) : (
-              <span className="text-sm font-semibold text-tx-primary-light dark:text-tx-primary truncate max-w-[90px] sm:max-w-[160px]">
+              <span className="text-sm font-semibold text-tx-primary-light dark:text-tx-primary truncate max-w-[120px] sm:max-w-[160px]">
                 {crumb.label}
               </span>
             )}
@@ -115,7 +115,7 @@ export default function VercelNav() {
       </div>
 
       {/* Right: theme toggle + settings + preferences + tour + profile */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -123,34 +123,44 @@ export default function VercelNav() {
             setTourActive(true)
           }}
           title="Take Guided Tour"
-          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+          className="hidden sm:flex w-11 h-11 items-center justify-center text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
         >
           <HelpCircle className="w-4 h-4 text-accent" />
         </button>
         <Link
           to="/settings?tab=preferences"
           title="Preferences"
-          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+          className="hidden sm:flex w-11 h-11 items-center justify-center text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
         >
           <Sliders className="w-4 h-4" />
         </Link>
         <Link
           to="/settings"
           title="Account Settings"
-          className="p-1.5 text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+          className="hidden sm:flex w-11 h-11 items-center justify-center text-tx-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
         >
           <Settings className="w-4 h-4" />
         </Link>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+          title="Search / Command Palette"
+          className="flex sm:hidden w-11 h-11 items-center justify-center text-tx-secondary hover:text-accent rounded-xl transition-all"
+        >
+          <Search className="w-4 h-4" />
+        </button>
         <ThemeToggleButton />
-        <UserButton
-          afterSignOutUrl="/"
-          appearance={{
-            elements: {
-              avatarBox: 'w-7 h-7 ring-2 ring-border dark:ring-[rgba(255,255,255,0.06)] ring-offset-2 ring-offset-bg-light dark:ring-offset-bg rounded-lg',
-              userButtonPopoverCard: 'bg-surface border border-[rgba(255,255,255,0.06)] squircle',
-            }
-          }}
-        />
+        <div className="min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                avatarBox: 'w-7 h-7 ring-2 ring-border dark:ring-[rgba(255,255,255,0.06)] ring-offset-2 ring-offset-bg-light dark:ring-offset-bg rounded-lg',
+                userButtonPopoverCard: 'bg-surface border border-[rgba(255,255,255,0.06)] squircle',
+              }
+            }}
+          />
+        </div>
       </div>
     </nav>
   )

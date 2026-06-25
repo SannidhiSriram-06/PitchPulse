@@ -72,6 +72,8 @@ export default function DashboardPage() {
     }
   }
 
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null)
+
   const cancelScheduled = async (e, id) => {
     e.stopPropagation()
     try {
@@ -85,16 +87,14 @@ export default function DashboardPage() {
 
   const removeWatchlist = async (e, id, name) => {
     e.stopPropagation()
-    if (confirm(`Remove ${name} from watchlist?`)) {
-      const originalWatchlist = watchlist
-      setWatchlist(prev => prev.filter(w => w.id !== id))
-      toast.success(`${name} removed from watchlist`)
-      try {
-        await api.delete(`/api/watchlist/${id}`)
-      } catch {
-        setWatchlist(originalWatchlist)
-        toast.error('Failed to remove company')
-      }
+    const originalWatchlist = watchlist
+    setWatchlist(prev => prev.filter(w => w.id !== id))
+    toast.success(`${name} removed from watchlist`)
+    try {
+      await api.delete(`/api/watchlist/${id}`)
+    } catch {
+      setWatchlist(originalWatchlist)
+      toast.error('Failed to remove company')
     }
   }
 
@@ -235,13 +235,39 @@ export default function DashboardPage() {
                 >
                   Generate Brief
                 </button>
-                <button
-                  onClick={(e) => removeWatchlist(e, item.id, item.company_name)}
-                  className="p-2 border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                  title="Remove from watchlist"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {confirmRemoveId === item.id ? (
+                  <div className="flex gap-1 items-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeWatchlist(e, item.id, item.company_name)
+                      }}
+                      className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-2 py-2 rounded-xl transition-all"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setConfirmRemoveId(null)
+                      }}
+                      className="border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl text-tx-tertiary hover:text-tx-secondary text-xs px-2 py-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmRemoveId(item.id)
+                    }}
+                    className="p-2 border border-border dark:border-[rgba(255,255,255,0.06)] rounded-xl text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                    title="Remove from watchlist"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}

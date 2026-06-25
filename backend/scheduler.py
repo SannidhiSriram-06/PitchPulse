@@ -7,6 +7,13 @@ from models import ScheduledBrief, User, Brief
 from agents import run_brief
 from email_service import send_scheduled_brief
 
+def make_naive_utc(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
 def check_and_run_due_briefs(app):
     with app.app_context():
         try:
@@ -34,16 +41,15 @@ def check_and_run_due_briefs(app):
                         continue
 
                     # Check and reset rate limit window
-                    hour_window_start = user.hour_window_start
-                    if hour_window_start and hour_window_start.tzinfo:
-                        hour_window_start = hour_window_start.replace(tzinfo=None)
-                    elif not hour_window_start:
+                    hour_window_start = make_naive_utc(user.hour_window_start)
+                    if not hour_window_start:
                         hour_window_start = now
 
                     window_elapsed = now - hour_window_start
                     if window_elapsed.total_seconds() > 3600:
                         user.briefs_used_this_hour = 0
                         user.hour_window_start = now
+                        hour_window_start = now
 
                     if user.tier == 'free' and user.briefs_used_this_hour >= 3:
                         # Don't fail permanently — just reschedule for after the window resets

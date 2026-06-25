@@ -23,21 +23,14 @@ ALL_VALID_MODELS = VALID_FREE_MODELS | VALID_PRO_MODELS
 
 DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-# Round-robin key rotator — alternates between GROQ_API_KEY and GROQ_API_KEY_2
+# Thread-safe key rotator — chooses randomly between GROQ_API_KEY and GROQ_API_KEY_2
 # on every call to spread load and avoid per-key rate limits.
-def _make_key_cycle():
+def _next_api_key():
     keys = [k for k in [Config.GROQ_API_KEY, Config.GROQ_API_KEY_2] if k]
     if not keys:
         raise RuntimeError("No GROQ_API_KEY configured")
-    return itertools.cycle(keys)
-
-_key_cycle = None
-
-def _next_api_key():
-    global _key_cycle
-    if _key_cycle is None:
-        _key_cycle = _make_key_cycle()
-    return next(_key_cycle)
+    import random
+    return random.choice(keys)
 
 
 def extract_company_and_context(prompt, api_key=None):
@@ -101,6 +94,45 @@ def extract_company_and_context(prompt, api_key=None):
     return prompt, ""
 
 
+# Character budgets per model to avoid token/TPM limits.
+MODEL_BUDGETS = {
+    "meta-llama/llama-4-scout-17b-16e-instruct": {
+        "search_per_query_cap": 4000,
+        "pdf_cap": 5500,
+        "financial_cap": 1500
+    },
+    "groq/compound-mini": {
+        "search_per_query_cap": 6000,
+        "pdf_cap": 7500,
+        "financial_cap": 2000
+    },
+    "llama-3.1-8b-instant": {
+        "search_per_query_cap": 1500,
+        "pdf_cap": 2000,
+        "financial_cap": 800
+    },
+    "llama-3.3-70b-versatile": {
+        "search_per_query_cap": 2500,
+        "pdf_cap": 3500,
+        "financial_cap": 1200
+    },
+    "openai/gpt-oss-120b": {
+        "search_per_query_cap": 2000,
+        "pdf_cap": 3000,
+        "financial_cap": 1000
+    },
+    "groq/compound": {
+        "search_per_query_cap": 6000,
+        "pdf_cap": 7500,
+        "financial_cap": 2000
+    }
+}
+DEFAULT_BUDGET = {
+    "search_per_query_cap": 3000,
+    "pdf_cap": 4500,
+    "financial_cap": 1400
+}
+
 def run_brief(company_name, length, sections, user_context, model_id=None, deep_mind=False, full_query="", pdf_context=""):
     """
     Generate a pre-meeting intelligence brief.
@@ -124,45 +156,15 @@ def run_brief(company_name, length, sections, user_context, model_id=None, deep_
     chosen_model = model_id or DEFAULT_MODEL
 
     # LiteLLM always needs "groq/<model_id>" to route to Groq.
-    # Models like "groq/compound-mini" or "groq/compound" already start with "groq/".
-    # To query the Groq API provider, the LiteLLM format must be "groq/groq/compound-mini",
-    # where the first "groq/" specifies the provider, and the remainder "groq/compound-mini"
-    # is the actual model ID sent to Groq.
     if chosen_model.startswith("groq/") and chosen_model not in ("groq/compound-mini", "groq/compound"):
         model_path = chosen_model
     else:
         model_path = f"groq/{chosen_model}"
 
-    # Per-model char budgets — sized to stay comfortably under each model's TPM limit.
-    if chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
-        _search_per_query_cap = 4000
-        _pdf_cap              = 5500
-        _financial_cap        = 1500
-    elif chosen_model == "groq/compound-mini":
-        _search_per_query_cap = 6000
-        _pdf_cap              = 7500
-        _financial_cap        = 2000
-    elif chosen_model == "llama-3.1-8b-instant":
-        _search_per_query_cap = 1500
-        _pdf_cap              = 2000
-        _financial_cap        = 800
-    elif chosen_model == "llama-3.3-70b-versatile":
-        _search_per_query_cap = 2500
-        _pdf_cap              = 3500
-        _financial_cap        = 1200
-    elif chosen_model == "openai/gpt-oss-120b":
-        _search_per_query_cap = 2000
-        _pdf_cap              = 3000
-        _financial_cap        = 1000
-    elif chosen_model == "groq/compound":
-        _search_per_query_cap = 6000
-        _pdf_cap              = 7500
-        _financial_cap        = 2000
-    else:
-        # Default fallback
-        _search_per_query_cap = 3000
-        _pdf_cap              = 4500
-        _financial_cap        = 1400
+    budget = MODEL_BUDGETS.get(chosen_model, DEFAULT_BUDGET)
+    _search_per_query_cap = budget["search_per_query_cap"]
+    _pdf_cap              = budget["pdf_cap"]
+    _financial_cap        = budget["financial_cap"]
 
     # ── Build context instruction from the user's full natural query ──────────
     pitch_context = full_query or user_context or ""
@@ -437,8 +439,10 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
         tools_module._search_depth = "basic"
 
     # Base queries always run
+    current_year = datetime.now().year
+    prev_year = current_year - 1
     search_queries = [
-        f"{company_name} latest news announcements 2024 2025",
+        f"{company_name} latest news announcements {prev_year} {current_year}",
         f"{company_name} revenue earnings financial performance funding",
         f"{company_name} leadership changes executive appointments",
     ]
@@ -712,11 +716,10 @@ HARD RULES:
 def _repair_truncated_json(text):
     """
     Attempt to close a truncated JSON string so it can be parsed.
-    Works by counting open braces/brackets and appending the missing closers.
+    Works by keeping a stack of open braces/brackets outside of strings
+    and closing them in reverse order.
     """
-    # Count open structures
-    depth_brace = 0
-    depth_bracket = 0
+    stack = []
     in_string = False
     escape_next = False
 
@@ -733,21 +736,28 @@ def _repair_truncated_json(text):
         if in_string:
             continue
         if ch == '{':
-            depth_brace += 1
+            stack.append('{')
         elif ch == '}':
-            depth_brace -= 1
+            if stack and stack[-1] == '{':
+                stack.pop()
         elif ch == '[':
-            depth_bracket += 1
+            stack.append('[')
         elif ch == ']':
-            depth_bracket -= 1
+            if stack and stack[-1] == '[':
+                stack.pop()
 
-    # If we're inside a string, close it
     suffix = ''
     if in_string:
         suffix += '"'
-    # Close open arrays/objects in reverse order (approximate)
-    suffix += ']' * max(0, depth_bracket)
-    suffix += '}' * max(0, depth_brace)
+        
+    # Close open structures in reverse order of opening
+    while stack:
+        opener = stack.pop()
+        if opener == '{':
+            suffix += '}'
+        elif opener == '[':
+            suffix += ']'
+            
     return text + suffix
 
 

@@ -13,7 +13,7 @@ export default function CommandPalette() {
   const inputRef = useRef(null)
   const containerRef = useRef(null)
 
-  // Open with ⌘K / Ctrl+K only — no single-key 'f' shortcut (too disruptive)
+  // Open with ⌘K / Ctrl+K or custom event
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -23,8 +23,15 @@ export default function CommandPalette() {
         setOpen(false)
       }
     }
+    const handleOpenEvent = () => {
+      setOpen(true)
+    }
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('open-command-palette', handleOpenEvent)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('open-command-palette', handleOpenEvent)
+    }
   }, [open])
 
   // Focus input when opened

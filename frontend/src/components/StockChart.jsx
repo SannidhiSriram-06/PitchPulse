@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import api from '../lib/api'
 
 export default function StockChart({ companyName }) {
   const [data, setData] = useState(null)
@@ -13,11 +14,6 @@ export default function StockChart({ companyName }) {
     setLoading(true)
     setError(null)
     try {
-      // Get the authorization token from localStorage or cookie if using clerk
-      // In this codebase, the `api` module handles Authorization header. We will do a direct fetch or handle it.
-      // Since `api` is imported from '../lib/api', we can use it to fetch easily!
-      // Let's import api from '../lib/api' at the top.
-      const api = (await import('../lib/api')).default
       const res = await api.get(`/api/stock?company=${encodeURIComponent(companyName)}`)
       setData(res.data)
     } catch (e) {
@@ -118,6 +114,31 @@ export default function StockChart({ companyName }) {
     })
   }
 
+  const handleTouchMove = (e) => {
+    if (!svgRef.current || !e.touches || e.touches.length === 0) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const clientX = e.touches[0].clientX
+    const x = clientX - rect.left
+    
+    // Find closest data point by X coordinate
+    let closestIndex = 0
+    let minDistance = Infinity
+    
+    coords.forEach((coord, idx) => {
+      const dist = Math.abs(coord.x - (x * (width / rect.width)))
+      if (dist < minDistance) {
+        minDistance = dist
+        closestIndex = idx
+      }
+    })
+
+    setHoveredIndex(closestIndex)
+    setTooltipPos({
+      x: coords[closestIndex].x * (rect.width / width),
+      y: coords[closestIndex].y * (rect.height / height) - 45
+    })
+  }
+
   const handleMouseLeave = () => {
     setHoveredIndex(null)
   }
@@ -167,6 +188,9 @@ export default function StockChart({ companyName }) {
           className="w-full h-auto overflow-visible cursor-crosshair"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchMove}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleMouseLeave}
         >
           <defs>
             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
