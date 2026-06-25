@@ -10,23 +10,24 @@ This document serves as an exhaustive reference for the system’s architecture,
 
 ### 1. Backend Layer (Python / Flask)
 * **Framework**: Flask with CORS enabled (`flask-cors`).
-* **Database & ORM**: SQLAlchemy (`flask-sqlalchemy`) with **Supabase PostgreSQL** in production (and SQLite fallback in local environment).
+* **Database & ORM**: SQLAlchemy (`flask-sqlalchemy`) with **Supabase PostgreSQL** in production (and SQLite fallback in local environment with enforced foreign key cascades).
 * **AI & Agentic Framework**: CrewAI with LiteLLM for multi-agent orchestration.
-* **Authentication**: Clerk JWT token signature verification (using cached JWKS public keys).
+* **Authentication**: Clerk JWT token signature verification (using cached JWKS public keys, strictly requiring signature validation in production mode).
 * **External Integrations**:
   * **Tavily API** (`tavily-python`) for targeted web searches.
   * **Yahoo Finance API** (`yfinance` + raw HTTP fallbacks) for live market pricing, historical chart points (30 days), and financials.
-  * **Resend API** (`resend`) for transactional emails (welcomes, scheduled briefs).
+  * **Resend API** (`resend`) for transactional emails (welcomes, scheduled briefs rendering all 9 brief sections).
   * **PyPDF2** for client-side PDF product documentation parsing.
 * **Rate Limiting**: Sliding hour window per user enforcing a limit of 3 briefs/hour for the free tier.
 
 ### 2. Frontend Layer (React / Vite)
-* **State Management**: Zustand stores (`authStore`, `briefStore`, `prefsStore`).
+* **State Management**: Zustand stores (`authStore`, `prefsStore`).
 * **Styling**: Tailwind CSS, Vanilla CSS (`index.css`), custom Google Fonts (Inter + Space Grotesk).
 * **Animations**: Framer Motion for smooth micro-interactions, word reveals, layout transitions, and page load cascades.
 * **Interactive Charts**: Custom SVG/Framer-based lightweight financial charts.
 * **Auth**: Clerk React SDK (`@clerk/clerk-react`) for secure authentication flows.
 * **Routing**: React Router DOM (`react-router-dom`) with client-side route protection.
+* **Error Resilience**: A dedicated `ErrorScreen` system panel to catch API failures on key views (Dashboard, Brief Display, History, and Share Link Page) with Retry/Return actions.
 
 ---
 
@@ -38,31 +39,32 @@ Pitchpulse_Upgrade/
 │   ├── app.py                # Main Flask app, API routes, Clerk auth, and rate-limiting
 │   ├── agents.py             # CrewAI multi-agent crew, LLM key rotators, prompt templates
 │   ├── tools.py              # Custom Tavily Web Search and yfinance lookup tools
-│   ├── scheduler.py          # Due brief queue processor called via cron endpoint
-│   ├── email_service.py      # Resend client setups and HTML newsletter-style email templates
-│   ├── database.py           # SQLAlchemy database initialization utility
-│   ├── models.py             # User, Brief, Watchlist, ScheduledBrief db entities
+│   ├── scheduler.py          # Due brief queue processor called via cron endpoint (resilient recurrence)
+│   ├── email_service.py      # Resend client setups and HTML newsletter-style email templates (renders all sections)
+│   ├── database.py           # SQLAlchemy database initialization utility (SQLite FK listener)
+│   ├── models.py             # User, Brief, Watchlist, ScheduledBrief db entities (cascade delete relations)
 │   ├── config.py             # Environment configurations and validation logic
-│   ├── requirements.txt      # Python package list
-│   └── .env                  # Backend secret settings (API keys, secrets)
+│   └── requirements.txt      # Python package list
 │
 ├── frontend/
+│   ├── public/
+│   │   └── auth-7.avif       # Localized authentication background asset
 │   ├── src/
 │   │   ├── App.jsx           # Routing configuration & global React setup
 │   │   ├── main.jsx          # React DOM mounting and Clerk context provider wrapper
 │   │   ├── index.css         # Typography, global scrollbars, theme styles, Apple squircles
 │   │   ├── pages/            # View components corresponding to app routes
-│   │   ├── components/       # Reusable UI widgets and layout shells
-│   │   ├── store/            # Zustand store definitions for auth, briefs, and prefs
+│   │   ├── components/       # Reusable UI widgets (ErrorScreen, MobileBottomNav, etc.)
+│   │   ├── store/            # Zustand store definitions for auth and prefs
 │   │   ├── hooks/            # Custom hooks (e.g. useTheme for system/light/dark state)
 │   │   ├── lib/              # Client setups (axios interceptors, API defaults)
 │   │   └── utils/            # Helper utils
 │   ├── package.json          # Node dependencies
 │   ├── tailwind.config.js    # Tailwind theme customization
-│   └── vite.config.js        # Vite build configurations and PWA manifest setups
+│   └── vite.config.js        # Vite PWA configurations with Workbox api cache-rules
 │
+├── .gitignore                # Root gitignore excluding md temp files and env configurations
 ├── context.md                # System metadata
-├── fix this.md               # Known bug tracker / checklist
 └── README.md                 # System overview (this document)
 ```
 
@@ -144,11 +146,11 @@ Clerk handles identity provider processes. The backend validates Clerk tokens lo
 * Retrieves the Clerk JWKS key list from `CLERK_JWKS_URL` and caches it using `@lru_cache`.
 * On encountering unknown kids (key IDs), it clears the cache and refetches keys once to support key rotations.
 * Translates the signature verification claims to verify issuer correctness and expiration (`verify_exp: True`).
-* Automatically registers unknown users inside SQLite with a placeholder fallback if the email is missing, immediately triggering a non-blocking welcome email.
+* Strict verification checks block signature bypass fallbacks in production.
 
 ### 2. Multi-Agent Synthesis Crew (`backend/agents.py`)
 Brief generation is driven by **CrewAI**.
-* **Key Rotator**: Implements a round-robin rotation between `GROQ_API_KEY` and `GROQ_API_KEY_2` to spread rate-limit quotas under load.
+* **Key Rotator**: Implements a thread-safe random load rotation between `GROQ_API_KEY` and `GROQ_API_KEY_2` to spread rate-limit quotas under load.
 * **LLM Config**:
   * **Free models**: `meta-llama/llama-4-scout-17b-16e-instruct` (30K TPM limit) and `llama-3.3-70b-versatile` (12K TPM).
   * **Pro models**: `openai/gpt-oss-120b`, `qwen/qwen3-32b`, and `groq/compound-mini`.
@@ -159,7 +161,7 @@ Brief generation is driven by **CrewAI**.
      * **BRIDGE**: How the rep's solution maps to that fact.
      * **OPENER**: The specific conversation opener text.
   3. **Pre-Meeting Brief Specialist**: Formats the synthesized outputs into a rigid, non-markdown-fenced JSON structure.
-* **JSON Repair Engine**: Includes a regex and token counting parser (`_repair_truncated_json`, `_extract_json`) that dynamically appends missing bracket/brace closures if an LLM is cut off mid-response due to token caps.
+* **JSON Repair Engine**: Includes a stack-based bracket/brace parser (`_repair_truncated_json`, `_extract_json`) that dynamically appends missing nested closures if an LLM is cut off mid-response.
 
 ### 3. Integrated Research Tools (`backend/tools.py`)
 * **`company_web_search`**: Utilizes Tavily Advanced search to perform targeted crawls. Combines counts to monitor results.
@@ -167,9 +169,9 @@ Brief generation is driven by **CrewAI**.
 
 ### 4. Cron Scheduler (`backend/scheduler.py`)
 * A POST endpoint (`/api/cron/process-scheduled`) is triggered periodically by an external cron worker. It checks the authorization header using `CRON_SECRET`.
-* Selects all pending scheduled briefings whose `scheduled_for` timestamp is in the past (up to `now + 2 minutes`).
+* Selects all pending scheduled briefings whose `scheduled_for` timestamp is in the past.
 * Evaluates the hourly rate limits of the owner user. If a free user has exceeded their quota, the job is rescheduled for the start of their next hour window instead of failing.
-* Executes `run_brief` in the background, generates a database record, emails the HTML copy to the user via Resend, and creates the next recurring entry (daily/weekly) if required.
+* Executes `run_brief` in the background, generates a database record, emails the HTML copy containing all active sections to the user via Resend, and queues the next recurrence even on failures.
 
 ---
 
@@ -182,10 +184,11 @@ Brief generation is driven by **CrewAI**.
 ### 2. Dashboard (`frontend/src/pages/DashboardPage.jsx`)
 * Shows the user's recent briefs with pagination and text-search filtering.
 * Houses a folder-organized **Watchlist** sidebar widget, showcasing tracked companies, user notes, and a direct "Generate Brief" trigger.
+* Features touch-friendly action controls and fallback error retry panels.
 
 ### 3. Brief Generator (`frontend/src/pages/BriefGeneratorPage.jsx`)
 * Provides a unified natural language chat bar for inputs.
-* Supports **PDF context uploads** (up to 5MB) using PyPDF2 to extract details, passing it to the backend to constrain talking points.
+* Supports **PDF context uploads** (up to 2MB) using PyPDF2 to extract details, passing it to the backend to constrain talking points.
 * Includes configurable length controls (Short, Medium, Long) and a selection model picker.
 
 ### 4. Brief Viewer (`frontend/src/pages/BriefDisplayPage.jsx`)
@@ -225,7 +228,7 @@ sequenceDiagram
 
 ## ── Environment Variable Configs ──
 
-### Backend `.env`
+### Backend `.env` (Ignored from version control)
 ```ini
 GROQ_API_KEY=gsk_...           # Primary Groq API key
 GROQ_API_KEY_2=gsk_...         # Secondary key for load rotation (optional)
@@ -241,7 +244,7 @@ DATABASE_URL=postgresql://...  # Supabase PostgreSQL URL
 FROM_EMAIL=onboarding@resend.dev
 ```
 
-### Frontend `.env`
+### Frontend `.env` (Ignored from version control)
 ```ini
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_... # Clerk publishable key
 VITE_API_URL=http://localhost:5001     # Flask backend endpoint (Render)
@@ -250,7 +253,5 @@ VITE_API_URL=http://localhost:5001     # Flask backend endpoint (Render)
 ---
 
 ## ── Reference & Strategy Documents ──
-For deep-dive developer strategies, constraints, and audit notes, refer to:
-* **[speed.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/speed.md)**: Speed & UX performance optimization.
-* **[bugs.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/bugs.md)**: Codebase bug tracker & architectural safety fixes.
+For deep-dive developer strategies and quotas, refer to:
 * **[limits.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/limits.md)**: Workspace free tier quotas (Vercel, Render, Supabase, Groq).
