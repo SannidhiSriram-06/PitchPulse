@@ -5,3 +5,9 @@
 !README.md
 !context.md
 !**/README.md
+
+# Ignore environment configuration files
+.env
+.env.*
+backend/.env
+frontend/.env
