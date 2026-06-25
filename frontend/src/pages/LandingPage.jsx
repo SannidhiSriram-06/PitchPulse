@@ -106,7 +106,7 @@ const FEATURES = [
     label: 'PDF product context',
     icon: <FileText className="w-3 h-3" />,
     title: 'Upload your one-pager. AI cites it.',
-    subtitle: 'Attach your product PDF (up to 5MB). The AI quotes specific features, metrics, and ROI numbers from it in talking points and watch-outs.',
+    subtitle: 'Attach your product PDF (up to 2MB). The AI quotes specific features, metrics, and ROI numbers from it in talking points and watch-outs.',
     content: (
       <div className="space-y-3">
         <div className="bg-stone-800 dark:bg-[#0f0f0f] border border-stone-700/50 dark:border-white/8 rounded-xl p-4 space-y-2 shadow-sm">
@@ -130,7 +130,7 @@ const FEATURES = [
     label: 'Live web intel',
     icon: <Search className="w-3 h-3" />,
     title: 'Live search. Real financials. Every run.',
-    subtitle: '4 targeted web searches + live stock data on every generation. No cached database — the brief reflects what happened this week.',
+    subtitle: '4 targeted web searches + live stock data on every generation. Choose from 10 customizable modules to structure your brief.',
     content: (
       <div className="space-y-3">
         <div className="flex flex-wrap gap-1.5">
@@ -138,11 +138,13 @@ const FEATURES = [
             ['📋', 'Executive Summary', true],
             ['📰', 'Recent News',       true],
             ['📊', 'Financial Signals', true],
+            ['💬', 'Social Sentiment',  true],
             ['🎯', 'Talking Points',    true],
             ['⚠️', 'Watch Out For',     true],
-            ['👤', 'Leadership',        false],
+            ['👤', 'Leadership Changes',false],
+            ['💼', 'Job Signals',       false],
             ['🚀', 'Recent Launches',   false],
-            ['⚔️', 'Competitors',       false],
+            ['⚔️', 'Competitor Activity',false],
           ].map(([icon, label, on]) => (
             <span key={label} className={`text-xs px-2.5 py-1 rounded-lg border ${
               on ? 'bg-accent/8 border-accent/20 text-accent'
@@ -232,14 +234,16 @@ const FEATURES = [
     label: 'Model picker',
     icon: <Brain className="w-3 h-3" />,
     title: '3 free briefs/hour. Pick your model.',
-    subtitle: 'LLaMA 4 Scout handles long briefs and PDFs best. LLaMA 3.3 70B for all-around quality. Live countdown resets automatically every hour.',
+    subtitle: 'LLaMA 4 Scout handles long briefs and PDFs best. Compound Mini for ultra-fast parsing. LLaMA 3.3 and GPT OSS for Pro reasoning.',
     content: (
       <div className="space-y-3">
         <div className="space-y-2">
           {[
             { n: 'LLaMA 4 Scout (17B)', b: 'Default · Free', d: '30K TPM · best for PDFs', hot: true,  dim: false },
-            { n: 'LLaMA 3.3 (70B)',     b: 'Free',           d: '12K TPM · all-rounder',   hot: false, dim: false },
-            { n: 'GPT-OSS (120B)',       b: 'Pro',            d: 'Largest model',            hot: false, dim: true  },
+            { n: 'Compound Mini',       b: 'Free',           d: '70K TPM · ultra-fast parsing', hot: false, dim: false },
+            { n: 'LLaMA 3.3 (70B)',     b: 'Pro',            d: '12K TPM · high capability',  hot: false, dim: true  },
+            { n: 'GPT OSS (120B)',      b: 'Pro',            d: '8K TPM · massive reasoning',   hot: false, dim: true  },
+            { n: 'Compound Full',       b: 'Pro',            d: '70K TPM · ultimate composition', hot: false, dim: true },
           ].map(m => (
             <div key={m.n} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-stone-800 dark:bg-[#111] border-stone-700/40 dark:border-white/6 shadow-sm ${m.dim ? 'opacity-45' : ''}`}>
               <span className="text-sm font-medium text-stone-200 flex-1">{m.n}</span>
@@ -317,7 +321,7 @@ export default function LandingPage() {
           >
             {[
               { value: '~60s', label: 'Per brief'      },
-              { value: '8',    label: 'Intel sections'  },
+              { value: '10',   label: 'Intel sections'  },
               { value: '4',    label: 'Live searches'   },
               { value: '$0',   label: 'To start'        },
             ].map((s, i) => (
