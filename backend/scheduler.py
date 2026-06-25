@@ -30,6 +30,13 @@ def check_and_run_due_briefs(app):
 
             processed_count = 0
             for sb in due_briefs:
+                next_run = None
+                if sb.recurring:
+                    if sb.recurring == 'daily':
+                        next_run = sb.scheduled_for + timedelta(days=1)
+                    elif sb.recurring == 'weekly':
+                        next_run = sb.scheduled_for + timedelta(weeks=1)
+
                 try:
                     sb.status = 'running'
                     db.session.commit()
@@ -99,15 +106,28 @@ def check_and_run_due_briefs(app):
                     sb.status = 'completed'
                     sb.last_run_at = now
 
-                    # Queue next recurrence
-                    if sb.recurring:
-                        next_run = None
-                        if sb.recurring == 'daily':
-                            next_run = sb.scheduled_for + timedelta(days=1)
-                        elif sb.recurring == 'weekly':
-                            next_run = sb.scheduled_for + timedelta(weeks=1)
+                    # Queue next recurrence on success
+                    if next_run:
+                        new_sb = ScheduledBrief(
+                            user_id=sb.user_id,
+                            company_name=sb.company_name,
+                            scheduled_for=next_run,
+                            recurring=sb.recurring,
+                            length=sb.length,
+                            sections=sb.sections
+                        )
+                        db.session.add(new_sb)
 
-                        if next_run:
+                    db.session.commit()
+                    processed_count += 1
+
+                except Exception as e:
+                    logging.error(f"Error processing scheduled brief {sb.id}: {traceback.format_exc()}")
+                    sb.status = 'failed'
+                    
+                    # Queue next recurrence on failure as well
+                    if next_run:
+                        try:
                             new_sb = ScheduledBrief(
                                 user_id=sb.user_id,
                                 company_name=sb.company_name,
@@ -117,13 +137,9 @@ def check_and_run_due_briefs(app):
                                 sections=sb.sections
                             )
                             db.session.add(new_sb)
-
-                    db.session.commit()
-                    processed_count += 1
-
-                except Exception as e:
-                    logging.error(f"Error processing scheduled brief {sb.id}: {traceback.format_exc()}")
-                    sb.status = 'failed'
+                        except Exception as sched_err:
+                            logging.error(f"Failed to queue next recurrence after failure for brief {sb.id}: {sched_err}")
+                    
                     try:
                         db.session.commit()
                     except Exception:

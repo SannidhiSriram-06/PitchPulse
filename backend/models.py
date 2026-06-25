@@ -52,7 +52,7 @@ class ScheduledBrief(db.Model):
     sections = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')
     last_run_at = db.Column(db.DateTime, nullable=True)
-    brief_id = db.Column(db.Integer, db.ForeignKey('brief.id'), nullable=True)
+    brief_id = db.Column(db.Integer, db.ForeignKey('brief.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class APICache(db.Model):

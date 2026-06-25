@@ -1,20 +1,38 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Share } from 'lucide-react'
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [show, setShow] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+  const timerRef = useRef(null)
 
   useEffect(() => {
+    // Check if device is iOS and not already standalone
+    const isDeviceIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+    
+    if (isDeviceIOS && !isStandalone) {
+      setIsIOS(true)
+      if (!localStorage.getItem('pp_install_dismissed')) {
+        timerRef.current = setTimeout(() => setShow(true), 15000) // Show iOS guide after 15s
+      }
+    }
+
     const handler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
       if (!localStorage.getItem('pp_install_dismissed')) {
-        setTimeout(() => setShow(true), 30000) // Show after 30s
+        timerRef.current = setTimeout(() => setShow(true), 30000) // Show Android prompt after 30s
       }
     }
+
     window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
   }, [])
 
   const handleInstall = async () => {
@@ -43,21 +61,30 @@ export default function PWAInstallPrompt() {
         >
           <div className="flex gap-4 items-center">
             <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center shrink-0">
-              <svg className="w-6 h-6 text-white" viewBox="0 0 32 32" fill="currentColor">
-                <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontFamily="sans-serif" fontWeight="700" fontSize="18">P</text>
-              </svg>
+              <span className="text-white font-display font-bold text-lg">P</span>
             </div>
             <div className="flex-1">
               <h4 className="font-display font-medium text-sm">Install PitchPulse</h4>
-              <p className="text-xs text-tx-secondary">Quick access before meetings</p>
+              <p className="text-xs text-tx-secondary">
+                {isIOS 
+                  ? "Tap the Share button below, then 'Add to Home Screen'" 
+                  : "Install for quick access before meetings"}
+              </p>
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={handleInstall} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-medium">Install</button>
-            <button onClick={handleDismiss} className="flex-1 bg-surface-raised border border-border py-2 rounded-lg text-sm font-medium">Dismiss</button>
+            {isIOS ? (
+              <div className="flex-1 flex items-center justify-center gap-1.5 bg-surface-raised border border-border py-2 rounded-lg text-xs font-semibold text-tx-primary">
+                <Share className="w-3.5 h-3.5 text-accent" /> Use Safari Share menu
+              </div>
+            ) : (
+              <button onClick={handleInstall} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-medium">Install</button>
+            )}
+            <button onClick={handleDismiss} className="px-4 bg-surface-raised border border-border py-2 rounded-lg text-sm font-medium">Dismiss</button>
           </div>
         </motion.div>
       )}
     </AnimatePresence>
   )
 }
+

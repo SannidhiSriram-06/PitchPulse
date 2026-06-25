@@ -11,6 +11,8 @@ import StorageWidget from '../components/StorageWidget'
 import { useToast } from '../components/Toast'
 import GuidedTour from '../components/GuidedTour'
 import usePrefsStore from '../store/prefsStore'
+import ErrorScreen from '../components/ErrorScreen'
+
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -27,31 +29,37 @@ export default function DashboardPage() {
   const [totalBriefs, setTotalBriefs] = useState(0)
   const [activeTab, setActiveTab] = useState('recent')
   const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { tourActive, setTourActive } = usePrefsStore()
   const toast = useToast()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [briefsRes, watchlistRes, scheduledRes] = await Promise.all([
-          api.get('/api/briefs?limit=12'),
-          api.get('/api/watchlist'),
-          api.get('/api/scheduled')
-        ])
-        setBriefs(briefsRes.data.briefs || [])
-        setTotalBriefs(briefsRes.data.total || 0)
-        setWatchlist(watchlistRes.data.watchlist || [])
-        setScheduled(scheduledRes.data || [])
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [briefsRes, watchlistRes, scheduledRes] = await Promise.all([
+        api.get('/api/briefs?limit=12'),
+        api.get('/api/watchlist'),
+        api.get('/api/scheduled')
+      ])
+      setBriefs(briefsRes.data.briefs || [])
+      setTotalBriefs(briefsRes.data.total || 0)
+      setWatchlist(watchlistRes.data.watchlist || [])
+      setScheduled(scheduledRes.data || [])
+    } catch (e) {
+      console.error(e)
+      setError(e)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchData()
   }, [])
+
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -163,7 +171,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => deleteBrief(e, brief.id)}
-                        className="p-1 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                         title="Delete brief"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -390,6 +398,14 @@ export default function DashboardPage() {
             <div key={i} className="bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl p-5 h-44 shimmer squircle" />
           ))}
         </div>
+      ) : error ? (
+        <ErrorScreen
+          code="500"
+          title="Dashboard loading failed"
+          description="We had trouble talking to the server to fetch your dashboard stats."
+          buttonLabel="Try Again"
+          onAction={fetchData}
+        />
       ) : (
         <ExpandableTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
       )}

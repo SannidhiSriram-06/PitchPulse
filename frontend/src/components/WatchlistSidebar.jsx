@@ -100,16 +100,18 @@ export default function WatchlistSidebar() {
             {items.map(item => {
               const isActive = activeCompany === item.company_name
               return (
-                <li key={item.id}>
-                  <button
-                    onClick={() => generateBrief(item.company_name)}
-                    className={`group w-full text-left flex items-center justify-between p-2.5 rounded-xl transition-all ${
+                <li key={item.id} className="group">
+                  <div
+                    className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all border ${
                       isActive
-                        ? 'bg-accent/10 border border-accent/20'
-                        : 'hover:bg-surface-raised-light dark:hover:bg-surface-raised border border-transparent'
+                        ? 'bg-accent/10 border-accent/20'
+                        : 'hover:bg-surface-raised-light dark:hover:bg-surface-raised border-transparent'
                     }`}
                   >
-                    <div className="flex-1 min-w-0 pr-1">
+                    <button
+                      onClick={() => generateBrief(item.company_name)}
+                      className="flex-1 text-left min-w-0 pr-1 focus:outline-none"
+                    >
                       <div className={`text-sm font-medium truncate transition-colors ${isActive ? 'text-accent' : 'text-tx-primary-light dark:text-tx-primary'}`}>
                         {item.company_name}
                       </div>
@@ -118,30 +120,24 @@ export default function WatchlistSidebar() {
                           ? `briefed ${new Date(item.last_briefed_at).toLocaleDateString()}`
                           : 'never briefed'}
                       </div>
-                    </div>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <span
-                        role="button"
-                        tabIndex={0}
+                    </button>
+                    <div className="flex gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
                         title="Generate brief"
                         onClick={(e) => { e.stopPropagation(); generateBrief(item.company_name) }}
-                        onKeyDown={(e) => e.key === 'Enter' && generateBrief(item.company_name)}
                         className="p-1.5 rounded-lg hover:text-accent hover:bg-accent/10 text-tx-tertiary transition-all"
                       >
                         <Zap className="w-3.5 h-3.5" />
-                      </span>
-                      <span
-                        role="button"
-                        tabIndex={0}
+                      </button>
+                      <button
                         title="Remove"
                         onClick={(e) => { e.stopPropagation(); removeCompany(item.id, item.company_name) }}
-                        onKeyDown={(e) => e.key === 'Enter' && removeCompany(item.id, item.company_name)}
                         className="p-1.5 rounded-lg hover:text-red-500 hover:bg-red-500/10 text-tx-tertiary transition-all"
                       >
                         <X className="w-3.5 h-3.5" />
-                      </span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 </li>
               )
             })}

@@ -194,14 +194,12 @@ export default function BriefGeneratorPage() {
 
   return (
     <Layout>
-      {rateLimitData && (
-        <RateLimitModal
-          isOpen
-          onClose={() => setRateLimitData(null)}
-          resetInMinutes={rateLimitData.resetInMinutes}
-          resetAt={rateLimitData.resetAt}
-        />
-      )}
+      <RateLimitModal
+        isOpen={!!rateLimitData}
+        onClose={() => setRateLimitData(null)}
+        resetInMinutes={rateLimitData?.resetInMinutes}
+        resetAt={rateLimitData?.resetAt}
+      />
 
       {/* Model picker panel */}
       <AnimatePresence>

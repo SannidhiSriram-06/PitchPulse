@@ -7,6 +7,23 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-data-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 24 * 60 * 60
+              },
+              networkTimeoutSeconds: 5
+            }
+          }
+        ]
+      },
       manifest: {
         name: 'PitchPulse',
         short_name: 'PitchPulse',

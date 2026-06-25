@@ -30,11 +30,10 @@ export default function RateLimitModal({ isOpen, onClose, resetInMinutes, resetA
     return `${s}s`
   }
 
-  if (!isOpen) return null
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -97,6 +96,7 @@ export default function RateLimitModal({ isOpen, onClose, resetInMinutes, resetA
           </button>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   )
 }

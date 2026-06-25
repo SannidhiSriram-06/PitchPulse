@@ -65,7 +65,7 @@ export default function SignInPage() {
       <div className="hidden lg:block lg:w-1/2 p-4 h-screen sticky top-0">
         <div className="relative h-full w-full overflow-hidden rounded-[2rem] shadow-xl">
           <img
-            src="https://assets.watermelon.sh/auth-7.avif"
+            src="/auth-7.avif"
             alt="Cloudscape background"
             className="h-full w-full object-cover"
           />

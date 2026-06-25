@@ -4,6 +4,20 @@ from config import Config
 
 db = SQLAlchemy()
 
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if dbapi_connection.__class__.__name__ == 'Connection': # SQLite specific check fallback
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+        except Exception:
+            pass
+        finally:
+            cursor.close()
+
 def init_db(app):
     db_url = Config.DATABASE_URL
     if db_url and db_url.startswith("postgres://"):

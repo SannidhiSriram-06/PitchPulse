@@ -4,6 +4,8 @@ import { ExternalLink, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
 import { SECTION_LABELS, SECTION_ICONS } from '../utils/constants'
+import ErrorScreen from '../components/ErrorScreen'
+
 
 // Robustly extract title + body from any section item
 function extractItemFields(sectionId, item) {
@@ -92,24 +94,14 @@ export default function SharePage() {
   /* ── Not found / invalid ── */
   if (notFound || !data) {
     return (
-      <div className="min-h-screen bg-bg-light dark:bg-bg flex items-center justify-center text-center px-6">
-        <div className="max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="w-7 h-7 text-red-400" />
-          </div>
-          <h1 className="text-2xl font-display font-bold mb-2 text-tx-primary-light dark:text-tx-primary">
-            Brief not found
-          </h1>
-          <p className="text-sm text-tx-secondary mb-6 leading-relaxed">
-            This link is invalid or has expired. The owner may have removed access.
-          </p>
-          <Link
-            to="/sign-up"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-light text-white text-sm font-semibold rounded-xl transition-all"
-          >
-            Create your own free account →
-          </Link>
-        </div>
+      <div className="min-h-screen bg-bg-light dark:bg-bg flex items-center justify-center p-6">
+        <ErrorScreen
+          code="404"
+          title="Shared brief not found"
+          description="This link is invalid or has expired. The owner may have removed access or deleted the brief."
+          buttonLabel="Create Your Own Account"
+          onAction={() => window.location.href = '/sign-up'}
+        />
       </div>
     )
   }

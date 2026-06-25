@@ -61,6 +61,123 @@ def _render_brief_html(company_name, brief_dict, reason_text):
             date_str = f" <span style='color: #888; font-size: 12px;'>({item.get('date', '')})</span>" if item.get('date') else ""
             sections_html += f"<li style='margin-bottom: 12px;'><strong>{item.get('headline', 'News Link')}</strong>{date_str}<br>{item.get('summary', '')}</li>"
         sections_html += "</ul></div>"
+
+    financials = brief_dict.get("financials", {})
+    financials_content = financials.get("content", "")
+    financials_snapshot = financials.get("snapshot", {})
+    if financials_content or financials_snapshot:
+        confidence = financials.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">FINANCIALS{badge}</h3>
+        """
+        if financials_snapshot:
+            sections_html += '<div style="margin-bottom: 12px;">'
+            for k, v in financials_snapshot.items():
+                if k != 'disclaimer' and v:
+                    sections_html += f"""
+                    <div style="display: inline-block; background-color: #f6f6f6; border-radius: 6px; padding: 6px 10px; margin-right: 8px; margin-bottom: 8px; vertical-align: top;">
+                        <div style="font-size: 9px; color: #888; text-transform: uppercase; line-height: 1.2;">{k.replace('_', ' ')}</div>
+                        <div style="font-size: 12px; font-weight: bold; color: #1A1A1A; line-height: 1.3;">{v}</div>
+                    </div>
+                    """
+            sections_html += '</div>'
+        if financials_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0;'>{financials_content}</p>"
+        sections_html += "</div>"
+
+    lc = brief_dict.get("leadership_changes", {})
+    lc_items = lc.get("items", [])
+    lc_content = lc.get("content", "")
+    if lc_items or lc_content:
+        confidence = lc.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">LEADERSHIP CHANGES{badge}</h3>
+        """
+        if lc_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin-bottom: 12px; margin-top: 0;'>{lc_content}</p>"
+        if lc_items:
+            sections_html += "<ul style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;'>"
+            for item in lc_items:
+                sections_html += f"<li style='margin-bottom: 8px;'><strong>{item.get('name', '')}</strong>: {item.get('role', '')} ({item.get('change', '')})</li>"
+            sections_html += "</ul>"
+        sections_html += "</div>"
+
+    rl = brief_dict.get("recent_launches", {})
+    rl_items = rl.get("items", [])
+    rl_content = rl.get("content", "")
+    if rl_items or rl_content:
+        confidence = rl.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">RECENT LAUNCHES{badge}</h3>
+        """
+        if rl_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin-bottom: 12px; margin-top: 0;'>{rl_content}</p>"
+        if rl_items:
+            sections_html += "<ul style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;'>"
+            for item in rl_items:
+                sections_html += f"<li style='margin-bottom: 8px;'><strong>{item.get('name', '')}</strong>: {item.get('significance', '')}</li>"
+            sections_html += "</ul>"
+        sections_html += "</div>"
+
+    ca = brief_dict.get("competitor_activity", {})
+    ca_items = ca.get("items", [])
+    ca_content = ca.get("content", "")
+    if ca_items or ca_content:
+        confidence = ca.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">COMPETITOR ACTIVITY{badge}</h3>
+        """
+        if ca_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin-bottom: 12px; margin-top: 0;'>{ca_content}</p>"
+        if ca_items:
+            sections_html += "<ul style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;'>"
+            for item in ca_items:
+                sections_html += f"<li style='margin-bottom: 8px;'><strong>{item.get('competitor', '')}</strong>: {item.get('action', '')} (Impact: {item.get('impact', '')})</li>"
+            sections_html += "</ul>"
+        sections_html += "</div>"
+
+    ss = brief_dict.get("social_sentiment", {})
+    ss_sentiment = ss.get("sentiment", "")
+    ss_content = ss.get("content", "")
+    if ss_sentiment or ss_content:
+        confidence = ss.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">SOCIAL SENTIMENT{badge}</h3>
+        """
+        if ss_sentiment:
+            sections_html += f"<p style='margin-bottom: 12px; font-size: 14px;'><strong>Public Sentiment:</strong> <span style='display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background-color: #eee; color: #333;'>{ss_sentiment.upper()}</span></p>"
+        if ss_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0;'>{ss_content}</p>"
+        sections_html += "</div>"
+
+    js = brief_dict.get("job_signals", {})
+    js_items = js.get("items", [])
+    js_content = js.get("content", "")
+    if js_items or js_content:
+        confidence = js.get("confidence", "high")
+        badge = get_confidence_badge(confidence)
+        sections_html += f"""
+        <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 16px;">
+            <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0; margin-bottom: 12px;">JOB SIGNALS{badge}</h3>
+        """
+        if js_content:
+            sections_html += f"<p style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin-bottom: 12px; margin-top: 0;'>{js_content}</p>"
+        if js_items:
+            sections_html += "<ul style='color: #1A1A1A; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;'>"
+            for item in js_items:
+                sections_html += f"<li style='margin-bottom: 8px;'><strong>{item.get('role', '')}</strong>: {item.get('signal', '')}</li>"
+            sections_html += "</ul>"
+        sections_html += "</div>"
     
     return f"""
     <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; margin: 0 auto;">

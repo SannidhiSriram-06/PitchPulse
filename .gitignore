@@ -1,0 +1,7 @@
+# Ignore all markdown files by default
+*.md
+
+# Exclude README.md and context.md from being ignored
+!README.md
+!context.md
+!**/README.md

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bookmark, Copy, AlertTriangle, ThumbsUp, ThumbsDown, ChevronDown, ExternalLink, RefreshCw, Trash2, Mail, MoreVertical } from 'lucide-react'
@@ -10,6 +10,8 @@ import StockChart from '../components/StockChart'
 import { useToast } from '../components/Toast'
 import usePrefsStore from '../store/prefsStore'
 import { SECTION_LABELS, SECTION_ICONS } from '../utils/constants'
+import ErrorScreen from '../components/ErrorScreen'
+
 
 export default function BriefDisplayPage() {
   const { id } = useParams()
@@ -19,6 +21,7 @@ export default function BriefDisplayPage() {
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('core')
   const [viewMode, setViewMode] = useState(defaultView || 'tabs')
   const [showSources, setShowSources] = useState(false)
@@ -27,20 +30,24 @@ export default function BriefDisplayPage() {
   const [emailing, setEmailing] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
-  useEffect(() => {
-    const fetchBrief = async () => {
-      try {
-        const res = await api.get(`/api/briefs/${id}`)
-        setData(res.data)
-      } catch (e) {
-        console.error(e)
-        navigate('/dashboard')
-      } finally {
-        setLoading(false)
-      }
+  const fetchBrief = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.get(`/api/briefs/${id}`)
+      setData(res.data)
+    } catch (e) {
+      console.error(e)
+      setError(e)
+    } finally {
+      setLoading(false)
     }
+  }, [id])
+
+  useEffect(() => {
     fetchBrief()
-  }, [id, navigate])
+  }, [fetchBrief])
+
 
   const toggleSave = async () => {
     const originalSaved = data?.saved
@@ -109,6 +116,28 @@ export default function BriefDisplayPage() {
           <div className="h-12 bg-surface-raised-light dark:bg-surface-raised w-full rounded-xl shimmer" />
           <div className="h-96 bg-surface-raised-light dark:bg-surface-raised w-full rounded-2xl shimmer" />
         </div>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    const status = error.response?.status || 500
+    const title = status === 404 ? "Brief not found" : status === 403 ? "Access Denied" : "Failed to load brief"
+    const description = status === 404 
+      ? "The brief you are looking for does not exist or has been deleted."
+      : status === 403 
+      ? "You do not have permission to view this brief."
+      : "There was a network or server error loading this brief."
+    
+    return (
+      <Layout>
+        <ErrorScreen
+          code={String(status)}
+          title={title}
+          description={description}
+          buttonLabel={status === 404 || status === 403 ? "Return to Dashboard" : "Retry Loading"}
+          onAction={status === 404 || status === 403 ? () => navigate('/dashboard') : fetchBrief}
+        />
       </Layout>
     )
   }

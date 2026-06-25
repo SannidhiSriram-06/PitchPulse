@@ -46,6 +46,8 @@ def _verify_clerk_token(token):
     (development only — never acceptable in production).
     """
     if not Config.CLERK_JWKS_URL:
+        if os.getenv("FLASK_ENV", "development") == "production":
+            raise RuntimeError("CRITICAL: CLERK_JWKS_URL must be configured in production mode to enforce JWT signature checks.")
         # ⚠️  DEV FALLBACK — set CLERK_JWKS_URL in production
         decoded = jwt.decode(token, options={"verify_signature": False}, algorithms=["RS256"])
         return decoded

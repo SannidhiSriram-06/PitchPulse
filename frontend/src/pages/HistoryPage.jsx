@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
 import Layout from '../components/Layout'
 import { useToast } from '../components/Toast'
+import ErrorScreen from '../components/ErrorScreen'
+
 
 const LIMIT = 10
 
@@ -15,12 +17,15 @@ export default function HistoryPage() {
   const [search, setSearch] = useState('')
   const [savedOnly, setSavedOnly] = useState(false)
   const [total, setTotal] = useState(0)
+  const [error, setError] = useState(null)
   const navigate = useNavigate()
   const toast = useToast()
+
 
   // Fetch fresh list (offset = 0)
   const fetchBriefs = useCallback(async (q, saved) => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({ limit: LIMIT, offset: 0 })
       if (q) params.set('search', q)
@@ -28,12 +33,15 @@ export default function HistoryPage() {
       const res = await api.get(`/api/briefs?${params}`)
       setBriefs(res.data.briefs || [])
       setTotal(res.data.total || 0)
-    } catch {
+    } catch (e) {
+      console.error(e)
+      setError(e)
       toast.error('Failed to load briefs')
     } finally {
       setLoading(false)
     }
   }, [])
+
 
   // Debounce search + filter changes
   useEffect(() => {
@@ -112,6 +120,14 @@ export default function HistoryPage() {
             <div key={i} className="h-24 bg-surface-light dark:bg-surface border border-border dark:border-[rgba(255,255,255,0.06)] rounded-2xl shimmer" />
           ))}
         </div>
+      ) : error ? (
+        <ErrorScreen
+          code="500"
+          title="History loading failed"
+          description="We had trouble talking to the server to fetch your history."
+          buttonLabel="Try Again"
+          onAction={() => fetchBriefs(search, savedOnly)}
+        />
       ) : briefs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-surface-raised-light dark:bg-surface-raised flex items-center justify-center">
@@ -162,7 +178,7 @@ export default function HistoryPage() {
                     </span>
                     <button
                       onClick={(e) => deleteBrief(e, brief.id)}
-                      className="p-1.5 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                      className="p-1.5 rounded-lg text-tx-tertiary hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       title="Delete brief"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
