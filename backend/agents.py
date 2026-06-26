@@ -545,8 +545,21 @@ Each risk: specific trigger + evidence from the research + one concrete mitigati
                 error_str = str(e).lower()
                 if any(x in error_str for x in ['rate_limit', '429', 'ratelimit', 'tokens per minute', 'tpm']):
                     if attempt < max_retries - 1:
+                        # Fallback to alternative model on rate limit
+                        if chosen_model in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile", "groq/compound"):
+                            print(f"[PitchPulse Fast Mode] Rate limited on {chosen_model}. Falling back to meta-llama/llama-4-scout-17b-16e-instruct.")
+                            chosen_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+                        elif chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
+                            print(f"[PitchPulse Fast Mode] Rate limited on {chosen_model}. Falling back to groq/compound-mini.")
+                            chosen_model = "groq/compound-mini"
+                        else:
+                            print(f"[PitchPulse Fast Mode] Rate limited on {chosen_model}. Falling back to meta-llama/llama-4-scout-17b-16e-instruct.")
+                            chosen_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+                        # Update payload model
+                        payload["model"] = chosen_model
                         wait = (attempt + 1) * 6
-                        print(f"[PitchPulse Fast Mode] Rate limited. Waiting {wait}s before retry...")
+                        print(f"[PitchPulse Fast Mode] Rate limited. Waiting {wait}s before retry {attempt + 2}/{max_retries}...")
                         time.sleep(wait)
                         continue
                 raise e
@@ -705,6 +718,23 @@ HARD RULES:
             error_str = str(e).lower()
             if any(x in error_str for x in ['rate_limit', '429', 'ratelimit', 'tokens per minute', 'tpm']):
                 if attempt < max_retries - 1:
+                    # Fallback to alternative model on rate limit
+                    if chosen_model in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile", "groq/compound"):
+                        print(f"[PitchPulse] Rate limited on {chosen_model}. Falling back to meta-llama/llama-4-scout-17b-16e-instruct.")
+                        chosen_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+                    elif chosen_model == "meta-llama/llama-4-scout-17b-16e-instruct":
+                        print(f"[PitchPulse] Rate limited on {chosen_model}. Falling back to groq/compound-mini.")
+                        chosen_model = "groq/compound-mini"
+                    else:
+                        print(f"[PitchPulse] Rate limited on {chosen_model}. Falling back to meta-llama/llama-4-scout-17b-16e-instruct.")
+                        chosen_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+                    # Update model_path for next loop iteration
+                    if chosen_model.startswith("groq/") and chosen_model not in ("groq/compound-mini", "groq/compound"):
+                        model_path = chosen_model
+                    else:
+                        model_path = f"groq/{chosen_model}"
+
                     wait = (attempt + 1) * 6
                     print(f"[PitchPulse] Rate limited. Waiting {wait}s before retry {attempt + 2}/{max_retries}...")
                     time.sleep(wait)
