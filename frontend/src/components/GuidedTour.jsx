@@ -12,7 +12,7 @@ export default function GuidedTour({ active, onClose }) {
     {
       title: 'Welcome to PitchPulse! 🚀',
       content: 'PitchPulse is your AI-powered pre-meeting sales intelligence platform. We scan live web sources and financials to prepare you for any client meeting in 60 seconds. Let\'s take a quick tour.',
-      icon: <Sparkles className="w-8 h-8 text-accent animate-pulse" />,
+      icon: <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-accent animate-pulse" />,
       selector: null
     },
     {
@@ -20,13 +20,13 @@ export default function GuidedTour({ active, onClose }) {
       content: isMobile 
         ? 'Tap the search icon in the top navigation to instantly bring up the global search.'
         : 'Use the search bar in the top navigation to instantly search for any of your generated company briefs.',
-      icon: <Search className="w-8 h-8 text-accent" />,
+      icon: <Search className="w-6 h-6 sm:w-8 sm:h-8 text-accent" />,
       selector: isMobile ? 'button[title="Search / Command Palette"]' : 'input[placeholder="Search briefs..."]'
     },
     {
       title: '2. Generating a Custom Brief 📋',
       content: 'Click "New Brief" at any time to create a tailored sales brief. Customize the length, select sections, add client context, or upload a product PDF.',
-      icon: <Zap className="w-8 h-8 text-amber-400" />,
+      icon: <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-amber-400" />,
       selector: 'a[href="/brief/new"]'
     },
     {
@@ -34,7 +34,7 @@ export default function GuidedTour({ active, onClose }) {
       content: isMobile
         ? 'Monitor your pinned high-value target accounts on your dashboard watchlist tab.'
         : 'Pin your high-value target accounts in the left sidebar to monitor them at a glance and quickly trigger new briefs before meetings.',
-      icon: <Sliders className="w-8 h-8 text-emerald-400" />,
+      icon: <Sliders className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />,
       selector: isMobile ? null : 'aside'
     },
     {
@@ -42,7 +42,7 @@ export default function GuidedTour({ active, onClose }) {
       content: isMobile
         ? 'Tap the search icon in the top navigation to open the Command Palette. Quickly navigate pages or toggle themes.'
         : 'Press ⌘K or Ctrl+K anywhere to bring up the global Command Palette. Quickly navigate pages, search commands, or toggle light/dark modes.',
-      icon: <Navigation className="w-8 h-8 text-indigo-400" />,
+      icon: <Navigation className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-400" />,
       selector: isMobile ? 'button[title="Search / Command Palette"]' : 'button[title="Take Guided Tour"]'
     }
   ]
@@ -60,7 +60,6 @@ export default function GuidedTour({ active, onClose }) {
       if (currentStep.selector) {
         const el = document.querySelector(currentStep.selector)
         if (el) {
-          // If the element is hidden (e.g. mobile hidden navbar search), fallback
           const rect = el.getBoundingClientRect()
           if (rect.width > 0 && rect.height > 0) {
             setTargetRect(rect)
@@ -101,8 +100,19 @@ export default function GuidedTour({ active, onClose }) {
   }
 
   const getCardStyle = () => {
-    if (!targetRect || window.innerWidth < 640) {
-      // Center card overlay on mobile/fallback
+    // If mobile viewport (< 640px), position absolute-like at the bottom above navigation bar
+    if (window.innerWidth < 640) {
+      return {
+        position: 'fixed',
+        left: '16px',
+        right: '16px',
+        bottom: '88px',
+        zIndex: 1000
+      }
+    }
+
+    if (!targetRect) {
+      // Center card overlay on desktop/fallback
       return {
         position: 'fixed',
         left: '50%',
@@ -121,14 +131,14 @@ export default function GuidedTour({ active, onClose }) {
     let top = targetRect.bottom + margin
 
     // Check if it fits below the target
-    if (top + 280 > viewportHeight) {
+    if (top + 260 > viewportHeight) {
       // Position above the target
-      top = targetRect.top - 280 - margin
+      top = targetRect.top - 260 - margin
     }
 
     // Bound left and right within safe area
     left = Math.max(margin, Math.min(viewportWidth - cardWidth - margin, left))
-    top = Math.max(margin, Math.min(viewportHeight - 280 - margin, top))
+    top = Math.max(margin, Math.min(viewportHeight - 260 - margin, top))
 
     return {
       position: 'fixed',
@@ -174,16 +184,16 @@ export default function GuidedTour({ active, onClose }) {
 
         {/* Tour Card */}
         <motion.div
-          layout
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
+          layout={!isMobile && !!targetRect}
+          initial={{ opacity: 0, scale: 0.95, y: isMobile ? 12 : 0 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: isMobile ? 12 : 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
           style={getCardStyle()}
-          className="bg-white dark:bg-[#141414] border border-border dark:border-[rgba(255,255,255,0.08)] w-[90vw] sm:w-[380px] rounded-2xl p-6 shadow-2xl pointer-events-auto squircle"
+          className="bg-white dark:bg-[#141414] border border-border dark:border-[rgba(255,255,255,0.08)] sm:w-[380px] rounded-2xl p-5 sm:p-6 shadow-2xl pointer-events-auto squircle"
         >
           {/* Header */}
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
             <span className="text-[10px] uppercase font-mono tracking-widest text-tx-tertiary">
               Step {step + 1} of {tourSteps.length}
             </span>
@@ -196,20 +206,20 @@ export default function GuidedTour({ active, onClose }) {
           </div>
 
           {/* Graphic Icon */}
-          <div className="w-14 h-14 rounded-2xl bg-accent/5 dark:bg-accent/10 flex items-center justify-center mb-4 border border-accent/15">
+          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-accent/5 dark:bg-accent/10 flex items-center justify-center mb-3 sm:mb-4 border border-accent/15">
             {currentStep.icon}
           </div>
 
           {/* Title & Content */}
-          <h3 className="font-display font-bold text-base mb-2 text-tx-primary-light dark:text-tx-primary">
+          <h3 className="font-display font-bold text-sm sm:text-base mb-1.5 sm:mb-2 text-tx-primary-light dark:text-tx-primary leading-tight">
             {currentStep.title}
           </h3>
-          <p className="text-xs md:text-sm text-tx-secondary-light dark:text-tx-secondary mb-6 leading-relaxed">
+          <p className="text-xs sm:text-sm text-tx-secondary-light dark:text-tx-secondary mb-4 sm:mb-6 leading-relaxed">
             {currentStep.content}
           </p>
 
           {/* Footer Controls */}
-          <div className="flex items-center justify-between pt-4 border-t border-border dark:border-[rgba(255,255,255,0.04)]">
+          <div className="flex items-center justify-between pt-3.5 sm:pt-4 border-t border-border dark:border-[rgba(255,255,255,0.04)]">
             <button
               onClick={handleBack}
               disabled={step === 0}
@@ -231,7 +241,7 @@ export default function GuidedTour({ active, onClose }) {
 
             <button
               onClick={handleNext}
-              className="flex items-center gap-1 px-4 py-2 bg-accent hover:bg-accent-light text-white text-xs font-bold rounded-xl transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-accent hover:bg-accent-light text-white text-xs font-bold rounded-xl transition-all"
             >
               {step === tourSteps.length - 1 ? 'Finish Tour' : 'Next Step'} <ChevronRight className="w-3.5 h-3.5" />
             </button>
