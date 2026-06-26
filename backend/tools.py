@@ -6,9 +6,7 @@ import types
 import threading
 
 class ToolsModule(types.ModuleType):
-    def __init__(self, name):
-        super().__init__(name)
-        self._local_state = threading.local()
+    _local_state = threading.local()
 
     @property
     def _search_max_results(self):
