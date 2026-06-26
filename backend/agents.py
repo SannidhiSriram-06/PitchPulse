@@ -178,6 +178,50 @@ def run_brief(company_name, length, sections, user_context, model_id=None, deep_
         if first_line:
             product_label = first_line
 
+    # Extract meeting type from query string if specified (e.g. [Meeting Type: cold call])
+    meeting_type = None
+    m_match = re.search(r"\[Meeting Type:\s*([^\]]+)\]", full_query or "")
+    if m_match:
+        meeting_type = m_match.group(1).lower().strip()
+
+    meeting_instructions = ""
+    if meeting_type == "cold call":
+        meeting_instructions = """
+━━━ MEETING CONTEXT: COLD CALL ━━━
+The goal is to secure a 15-minute follow-up meeting.
+Rules for Talking Points & Openers:
+1. Make hooks and openers ultra-short, punchy, and direct (under 2 sentences).
+2. Lead with immediate, high-impact value or a critical problem they are facing right now.
+3. Keep the conversation starter low-friction, focused on curiosity or a quick benchmark question.
+"""
+    elif meeting_type == "first meeting":
+        meeting_instructions = """
+━━━ MEETING CONTEXT: FIRST MEETING / DISCOVERY ━━━
+The goal is discovery, uncovering pain points, and building initial trust.
+Rules for Talking Points & Openers:
+1. Build discovery-oriented bridges that connect our value prop directly to their current initiatives.
+2. Formulate open-ended probing questions in the openers to help uncover their budget, timeline, and core bottlenecks.
+3. Highlight areas where their current strategy might be lacking and how we can support.
+"""
+    elif meeting_type == "partnership":
+        meeting_instructions = """
+━━━ MEETING CONTEXT: STRATEGIC PARTNERSHIP ━━━
+The goal is identifying mutual growth, joint solutions, and shared value.
+Rules for Talking Points & Openers:
+1. Frame every point around shared capabilities and complementary strengths (1+1=3).
+2. Highlight co-selling, co-marketing, or deep product integrations.
+3. Openers should focus on launching joint pilots or exploring strategic alignment.
+"""
+    elif meeting_type == "renewal":
+        meeting_instructions = """
+━━━ MEETING CONTEXT: CLIENT RENEWAL / UPSELL ━━━
+The goal is to secure retention, demonstrate realized ROI, and expand account footprint.
+Rules for Talking Points & Openers:
+1. Focus heavily on historical value, usage metrics, and expansion/upsell opportunities.
+2. Proactively address watch-outs like new decision-makers, budget constraints, or competitor outreach.
+3. Opener format should be collaborative, centering on how to help them hit their next milestones.
+"""
+
     if pitch_context:
         context_instruction = f"""━━━ REP'S SALES CONTEXT (READ THIS FIRST) ━━━
 Query: "{pitch_context}"
@@ -193,6 +237,9 @@ Rules:
 ━━━ END CONTEXT ━━━"""
     else:
         context_instruction = ""
+
+    if meeting_instructions:
+        context_instruction += f"\n\n{meeting_instructions}"
 
     if pdf_context:
         context_instruction += f"""
