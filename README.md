@@ -34,7 +34,7 @@ This document serves as an exhaustive reference for the system’s architecture,
 ## ── Directory Structure & File Map ──
 
 ```
-Pitchpulse_Upgrade/
+PitchPulse/
 ├── backend/
 │   ├── app.py                # Main Flask app, API routes, Clerk auth, and rate-limiting
 │   ├── agents.py             # CrewAI multi-agent crew, LLM key rotators, prompt templates
@@ -44,6 +44,9 @@ Pitchpulse_Upgrade/
 │   ├── database.py           # SQLAlchemy database initialization utility (SQLite FK listener)
 │   ├── models.py             # User, Brief, Watchlist, ScheduledBrief db entities (cascade delete relations)
 │   ├── config.py             # Environment configurations and validation logic
+│   ├── utils/
+│   │   ├── sanitize.py       # Company name sanitization helpers
+│   │   └── ticker.py         # Ticker symbol resolution / private-company detection
 │   └── requirements.txt      # Python package list
 │
 ├── frontend/
@@ -152,8 +155,8 @@ Clerk handles identity provider processes. The backend validates Clerk tokens lo
 Brief generation is driven by **CrewAI**.
 * **Key Rotator**: Implements a thread-safe random load rotation between `GROQ_API_KEY` and `GROQ_API_KEY_2` to spread rate-limit quotas under load.
 * **LLM Config**:
-  * **Free models**: `meta-llama/llama-4-scout-17b-16e-instruct` (30K TPM limit) and `llama-3.3-70b-versatile` (12K TPM).
-  * **Pro models**: `openai/gpt-oss-120b`, `qwen/qwen3-32b`, and `groq/compound-mini`.
+  * **Free models**: `meta-llama/llama-4-scout-17b-16e-instruct` (30K TPM, default) and `groq/compound-mini` (70K TPM).
+  * **Pro models**: `llama-3.3-70b-versatile` (12K TPM), `openai/gpt-oss-120b` (8K TPM), and `groq/compound` (70K TPM).
 * **Agents**:
   1. **Senior Company Intelligence Researcher**: Reads compiled search results and Yahoo Finance output, extracting strategic company developments, hiring cues, and news. Cites sources.
   2. **Strategic Sales Intelligence Analyst**: Contextualizes findings according to the sales rep's pitch. Formulates **Talking Points** consisting of:
@@ -236,7 +239,7 @@ TAVILY_API_KEY=tvly-...        # Tavily search credential
 RESEND_API_KEY=re_...          # Resend email API key
 CLERK_SECRET_KEY=sk_test_...   # Clerk secret
 CLERK_PUBLISHABLE_KEY=pk_...   # Clerk public publishable key
-CLERK_JWKS_URL=https://...     # Clerk JWKS endpoint
+CLERK_JWKS_URL=https://...     # Clerk JWKS endpoint (required in production — enforces JWT signature checks)
 CRON_SECRET=super_secret_...   # Cron endpoint security key
 SECRET_KEY=app_signing_...     # Flask session key
 FRONTEND_URL=http://localhost:5173
@@ -250,8 +253,3 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_... # Clerk publishable key
 VITE_API_URL=http://localhost:5001     # Flask backend endpoint (Render)
 ```
 
----
-
-## ── Reference & Strategy Documents ──
-For deep-dive developer strategies and quotas, refer to:
-* **[limits.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/limits.md)**: Workspace free tier quotas (Vercel, Render, Supabase, Groq).

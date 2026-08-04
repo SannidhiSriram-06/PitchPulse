@@ -226,7 +226,7 @@ Users log in/sign up via Clerk UI components. A global token exposer (`ClerkToke
 
 ### Status:
 - End-to-end functionality (Auth -> Generate -> Display) is working correctly.
-- Codebase optimization guides ([speed.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/speed.md)), bug logs ([bugs.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/bugs.md)), and free-tier quotas ([limits.md](file:///Users/sannidhidurgapavansriram/Sriram/My%20Edu/BITSOM%20Programs/Pitchpulse_Upgrade/limits.md)) have been added to the project root to document performance strategy, resource limits, and resolve deploy-related data loss issues.
+- Codebase optimization guides, bug logs, and free-tier quota notes were kept locally during development to track performance strategy, resource limits, and deploy-related data loss issues (not part of this repo).
 
 ### What is NOT yet built (Phase 4 polish items):
 - Complex/Real-time socket updates/SSE for brief generation (currently relies on static frontend timer).
